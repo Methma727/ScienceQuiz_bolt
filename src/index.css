@@ -1,0 +1,25 @@
+@import "tailwindcss";
+@import "@heroui/react/styles";
+
+@theme {
+  --color-bg-default: #0f0f23;
+  --color-bg-paper: #1a1a2e;
+  --color-bg-elevated: #16213e;
+  --color-primary: #1a1a2e;
+  --color-primary-light: #16213e;
+  --color-primary-dark: #0f0f1a;
+  --color-secondary: #e94560;
+  --color-secondary-light: #ff6b6b;
+  --color-secondary-dark: #c73e54;
+  --color-success: #00d9a5;
+  --color-accent: #4a90a4;
+  --color-text-primary: #eaeaea;
+  --color-text-secondary: #a0a0a0;
+  --color-border: #2a2a3e;
+  --color-surface: #1a1a2e;
+}
+
+html.dark {
+  background-color: #0f0f23;
+  color-scheme: dark;
+}

@@ -1,0 +1,56 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toast } from '@heroui/react';
+import { AppProvider, useApp } from './context/AppContext';
+import HomePage from './pages/HomePage';
+import MainPage from './pages/MainPage';
+import LoginPage from './pages/LoginPage';
+import StudentStartPage from './pages/StudentStartPage';
+import QuizPage from './pages/QuizPage';
+import AdminDashboard from './pages/AdminDashboard';
+import LoadingScreen from './components/LoadingScreen';
+
+function ProtectedAdminRoute() {
+  const { isAdmin, loading } = useApp();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <AdminDashboard />;
+}
+
+function AppRoutes() {
+  const { loading } = useApp();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/main" element={<MainPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/start" element={<StudentStartPage />} />
+      <Route path="/quiz" element={<QuizPage />} />
+      <Route path="/admin" element={<ProtectedAdminRoute />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Toast.Provider>
+        <AppProvider>
+          <AppRoutes />
+        </AppProvider>
+      </Toast.Provider>
+    </BrowserRouter>
+  );
+}
