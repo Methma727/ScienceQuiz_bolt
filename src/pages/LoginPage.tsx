@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Card, CardContent, Spinner, Alert } from '@heroui/react';
+import { Button, Input, Card, CardContent, Spinner, Alert, TextField, Label } from '@heroui/react';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { ADMIN_EMAIL } from '../lib/constants';
@@ -64,24 +64,16 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin}>
             <div className="mb-3">
-              <Input
-                fullWidth
-                label="Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                isDisabled={loading}
-              />
+              <TextField value={email} onChange={(v) => setEmail(v)} isDisabled={loading}>
+                <Label>Email</Label>
+                <Input type="email" />
+              </TextField>
             </div>
             <div className="mb-4">
-              <Input
-                fullWidth
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                isDisabled={loading}
-              />
+              <TextField value={password} onChange={(v) => setPassword(v)} isDisabled={loading}>
+                <Label>Password</Label>
+                <Input type="password" />
+              </TextField>
             </div>
             <Button
               fullWidth
@@ -90,7 +82,7 @@ export default function LoginPage() {
               isDisabled={loading}
               className="py-4"
             >
-              {loading ? <Spinner size="sm" color="white" /> : 'Sign In'}
+              {loading ? <Spinner size="sm" color="current" /> : 'Sign In'}
             </Button>
           </form>
         </CardContent>

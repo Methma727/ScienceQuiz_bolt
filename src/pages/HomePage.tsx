@@ -50,21 +50,19 @@ export default function HomePage() {
             variant="outline"
             size="lg"
             onPress={() => navigate('/main')}
-            startContent={<NotebookText size={20} />}
             className="px-6"
             style={{ borderColor: '#2a2a3e', color: '#eaeaea' }}
           >
-            View Quizzes
+            <NotebookText size={20} /> View Quizzes
           </Button>
           <Button
             variant="outline"
             size="lg"
             onPress={() => navigate('/main')}
-            startContent={<Trophy size={20} />}
             className="px-6"
             style={{ borderColor: '#2a2a3e', color: '#eaeaea' }}
           >
-            Leaderboard
+            <Trophy size={20} /> Leaderboard
           </Button>
         </div>
 
@@ -73,10 +71,9 @@ export default function HomePage() {
             variant="ghost"
             size="sm"
             onPress={() => navigate('/login')}
-            startContent={<Shield size={16} />}
             className="text-text-secondary opacity-70"
           >
-            Admin Login
+            <Shield size={16} /> Admin Login
           </Button>
         </div>
       </div>

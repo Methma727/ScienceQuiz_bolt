@@ -102,16 +102,16 @@ export default function MainPage() {
       <header className="flex items-center px-4 py-3 border-b border-[#2a2a3e]" style={{ backgroundColor: '#0f0f23' }}>
         <h1 className="flex-1 text-lg font-semibold text-white">QuizMaster</h1>
         {isAdmin && (
-          <Button variant="ghost" size="sm" onPress={handleSignOut} startContent={<LogOut size={16} />}>
-            Sign Out
+          <Button variant="ghost" size="sm" onPress={handleSignOut}>
+            <LogOut size={16} /> Sign Out
           </Button>
         )}
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-4">
         <Tabs selectedKey={tabValue} onSelectionChange={(key) => setTabValue(key as string)}>
-          <Tab id="quizzes" title="Quizzes" />
-          <Tab id="leaderboard" title="Leaderboard" />
+          <Tab id="quizzes">Quizzes</Tab>
+          <Tab id="leaderboard">Leaderboard</Tab>
         </Tabs>
 
         {tabValue === 'quizzes' && (
@@ -145,11 +145,9 @@ export default function MainPage() {
                       </CardContent>
                       <CardFooter className="px-4 pb-4 pt-0">
                         <Button
-                          variant="solid"
                           size="lg"
                           fullWidth
                           onPress={() => navigate('/start')}
-                          startContent={<Play size={20} />}
                           className="py-4"
                           style={{
                             background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)',
@@ -157,7 +155,7 @@ export default function MainPage() {
                             border: 'none',
                           }}
                         >
-                          Start Quiz
+                          <Play size={20} /> Start Quiz
                         </Button>
                       </CardFooter>
                     </Card>
@@ -228,7 +226,7 @@ export default function MainPage() {
                           </td>
                           <td className="px-4 py-3 font-medium text-white">{entry.student_name}</td>
                           <td className="px-4 py-3 text-center">
-                            <Chip size="sm" color={rank <= 3 ? 'secondary' : 'default'}>{entry.score}</Chip>
+                            <Chip size="sm" color={rank <= 3 ? 'accent' : 'default'}>{entry.score}</Chip>
                           </td>
                           {selectedQuizId === 'all' && (
                             <td className="px-4 py-3 text-sm" style={{ color: '#eaeaea' }}>

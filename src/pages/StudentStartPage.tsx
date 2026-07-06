@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Card, CardContent } from '@heroui/react';
+import { Button, Input, Card, CardContent, TextField, Label, FieldError } from '@heroui/react';
 import { useApp } from '../context/AppContext';
 import { NotebookText } from 'lucide-react';
 
@@ -35,24 +35,17 @@ export default function StudentStartPage() {
           </div>
 
           <div>
-            <Input
-              fullWidth
-              label="Your Name"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setError(null);
-              }}
-              validationBehavior="aria"
-              isInvalid={!!error}
-              description={error || undefined}
-              className="mb-4"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleStart();
-                }
-              }}
-            />
+            <TextField value={name} onChange={(v) => { setName(v); setError(null); }} isInvalid={!!error} className="mb-4">
+              <Label>Your Name</Label>
+              <Input
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleStart();
+                  }
+                }}
+              />
+              {error && <FieldError>{error}</FieldError>}
+            </TextField>
             <Button
               fullWidth
               size="lg"

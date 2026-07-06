@@ -163,7 +163,7 @@ export default function QuizPage() {
                 <Frown className="mx-auto mb-3" size={64} style={{ color: '#a0a0a0' }} />
               )}
               <h3 className="text-2xl font-semibold mb-3" style={{ color: '#eaeaea' }}>Quiz Complete!</h3>
-              <Chip variant="outline" color="primary" className="mb-3">{quiz.title}</Chip>
+              <Chip variant="soft" color="accent" className="mb-3">{quiz.title}</Chip>
               <h2 className="text-4xl font-bold mb-2" style={{ color: '#e94560' }}>
                 {score} / {totalQuestions}
               </h2>
@@ -210,36 +210,27 @@ export default function QuizPage() {
                   {currentQuestion?.options.map((option, idx) => {
                     const isSelected = answered === option;
                     const isRight = option === currentQuestion.correct_answer;
-                    let variant: 'solid' | 'outline' | 'ghost' = 'outline';
-                    let color = 'default';
+                    let btnVariant: 'outline' | 'primary' | 'danger' = 'outline';
 
                     if (answered) {
                       if (isRight) {
-                        variant = 'solid';
-                        color = 'success';
+                        btnVariant = 'primary';
                       } else if (isSelected && !isRight) {
-                        variant = 'solid';
-                        color = 'danger';
+                        btnVariant = 'danger';
                       }
                     }
 
                     return (
                       <Button
                         key={idx}
-                        variant={variant}
+                        variant={btnVariant}
                         size="lg"
                         isDisabled={!!answered}
                         onPress={() => handleAnswer(option)}
                         className="justify-start py-4 px-3 text-base"
-                        color={color as any}
-                        startContent={
-                          answered && isRight ? (
-                            <CheckCircle size={20} />
-                          ) : answered && isSelected && !isRight ? (
-                            <XCircle size={20} />
-                          ) : null
-                        }
                       >
+                        {answered && isRight && <CheckCircle size={20} className="mr-2 shrink-0" />}
+                        {answered && isSelected && !isRight && <XCircle size={20} className="mr-2 shrink-0" />}
                         {option}
                       </Button>
                     );
@@ -253,7 +244,6 @@ export default function QuizPage() {
 
       <div className="p-4 flex justify-center">
         <Button
-          variant="solid"
           size="lg"
           isDisabled={!answered || submitting}
           onPress={handleNext}

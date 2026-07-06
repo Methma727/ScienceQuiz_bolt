@@ -85,12 +85,12 @@ export default function LeaderboardPage() {
         <Trophy className="mr-2" size={24} color="#e94560" />
         <h1 className="flex-1 text-lg font-semibold text-white">Leaderboard</h1>
         {isAdmin ? (
-          <Button variant="ghost" size="sm" onPress={signOut} startContent={<LogOut size={16} />}>
-            Sign Out
+          <Button variant="ghost" size="sm" onPress={signOut}>
+            <LogOut size={16} /> Sign Out
           </Button>
         ) : (
-          <Button variant="solid" size="sm" onPress={() => navigate('/start')} startContent={<NotebookText size={16} />}>
-            Take Quiz
+          <Button variant="primary" size="sm" onPress={() => navigate('/start')}>
+            <NotebookText size={16} /> Take Quiz
           </Button>
         )}
       </header>
@@ -154,7 +154,7 @@ export default function LeaderboardPage() {
                       </td>
                       <td className="px-4 py-3 font-medium text-white">{entry.student_name}</td>
                       <td className="px-4 py-3 text-center">
-                        <Chip size="sm" color={rank <= 3 ? 'secondary' : 'default'}>{entry.score}</Chip>
+                        <Chip size="sm" color={rank <= 3 ? 'accent' : 'default'}>{entry.score}</Chip>
                       </td>
                       {selectedQuizId === 'all' && (
                         <td className="px-4 py-3 text-sm text-white">

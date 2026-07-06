@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Button, Card, CardContent, Chip, Input, Switch, Tabs, Tab, Tooltip, Spinner, Modal, useOverlayState, Radio, RadioGroup, toast } from '@heroui/react';
+import { Button, Card, CardContent, Chip, Input, Switch, Tabs, Tab, Tooltip, TextField, Label, Modal, useOverlayState, Radio, RadioGroup, toast } from '@heroui/react';
 import { supabase, type Quiz, type Question } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { Plus, Pencil, Trash2, LogOut } from 'lucide-react';
@@ -262,24 +262,25 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-bg-default">
       <header className="flex items-center px-4 py-3 border-b border-[#2a2a3e] bg-[#0f0f23]">
         <h1 className="flex-1 text-lg font-semibold text-white">Admin Dashboard</h1>
-        <Tooltip content="Sign Out">
+        <Tooltip>
           <Button isIconOnly variant="ghost" onPress={handleSignOut}>
             <LogOut size={20} />
           </Button>
+          <Tooltip.Content>Sign Out</Tooltip.Content>
         </Tooltip>
       </header>
 
       <div className="max-w-5xl mx-auto px-4 py-4">
         <Tabs selectedKey={tabValue} onSelectionChange={(key) => setTabValue(key as string)}>
-          <Tab id="quizzes" title="Quizzes" />
-          <Tab id="questions" title="Questions" />
+          <Tab id="quizzes">Quizzes</Tab>
+          <Tab id="questions">Questions</Tab>
         </Tabs>
 
         {tabValue === 'quizzes' && (
           <div className="mt-4">
             <div className="flex justify-end mb-3">
-              <Button onPress={() => handleOpenQuizDialog()} startContent={<Plus size={20} />}>
-                Add Quiz
+              <Button onPress={() => handleOpenQuizDialog()}>
+                <Plus size={20} /> Add Quiz
               </Button>
             </div>
             {quizzes.length === 0 ? (
@@ -304,11 +305,12 @@ export default function AdminDashboard() {
                       <tr key={quiz.id} className="border-t border-[#2a2a3e] hover:bg-[rgba(233,69,96,0.04)]">
                         <td className="px-4 py-3 font-medium text-white">{quiz.title}</td>
                         <td className="px-4 py-3 text-center">
-                          <Tooltip content={quiz.is_active ? 'Click to deactivate' : 'Click to activate'}>
+                          <Tooltip>
                             <Switch
                               isSelected={quiz.is_active}
                               onChange={() => handleToggleActive(quiz)}
                             />
+                            <Tooltip.Content>{quiz.is_active ? 'Click to deactivate' : 'Click to activate'}</Tooltip.Content>
                           </Tooltip>
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -317,15 +319,17 @@ export default function AdminDashboard() {
                           </Chip>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Tooltip content="Edit">
+                          <Tooltip>
                             <Button isIconOnly size="sm" variant="ghost" onPress={() => handleOpenQuizDialog(quiz)} className="mr-1">
                               <Pencil size={16} />
                             </Button>
+                            <Tooltip.Content>Edit</Tooltip.Content>
                           </Tooltip>
-                          <Tooltip content="Delete">
+                          <Tooltip>
                             <Button isIconOnly size="sm" variant="ghost" onPress={() => handleDeleteQuiz(quiz)}>
                               <Trash2 size={16} style={{ color: '#e94560' }} />
                             </Button>
+                            <Tooltip.Content>Delete</Tooltip.Content>
                           </Tooltip>
                         </td>
                       </tr>
@@ -355,10 +359,9 @@ export default function AdminDashboard() {
                 </select>
                 <Button
                   onPress={() => handleOpenQuestionDialog()}
-                  startContent={<Plus size={20} />}
                   isDisabled={!selectedQuizId}
                 >
-                  Add Question
+                  <Plus size={20} /> Add Question
                 </Button>
               </CardContent>
             </Card>
@@ -392,15 +395,17 @@ export default function AdminDashboard() {
                           <Chip size="sm" color="success">{question.correct_answer}</Chip>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Tooltip content="Edit">
+                          <Tooltip>
                             <Button isIconOnly size="sm" variant="ghost" onPress={() => handleOpenQuestionDialog(question)} className="mr-1">
                               <Pencil size={16} />
                             </Button>
+                            <Tooltip.Content>Edit</Tooltip.Content>
                           </Tooltip>
-                          <Tooltip content="Delete">
+                          <Tooltip>
                             <Button isIconOnly size="sm" variant="ghost" onPress={() => handleDeleteQuestion(question)}>
                               <Trash2 size={16} style={{ color: '#e94560' }} />
                             </Button>
+                            <Tooltip.Content>Delete</Tooltip.Content>
                           </Tooltip>
                         </td>
                       </tr>
@@ -422,13 +427,10 @@ export default function AdminDashboard() {
               <Modal.Heading>{editingQuiz ? 'Edit Quiz' : 'New Quiz'}</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
-              <Input
-                autoFocus
-                fullWidth
-                label="Quiz Title"
-                value={quizDialogTitle}
-                onChange={(e) => setQuizDialogTitle(e.target.value)}
-              />
+              <TextField value={quizDialogTitle} onChange={(v) => setQuizDialogTitle(v)}>
+                <Label>Quiz Title</Label>
+                <Input autoFocus />
+              </TextField>
             </Modal.Body>
             <Modal.Footer>
               <Button variant="ghost" onPress={() => quizDialog.close()}>Cancel</Button>
@@ -449,18 +451,27 @@ export default function AdminDashboard() {
               <Modal.Heading>{editingQuestion ? 'Edit Question' : 'New Question'}</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
-              <Input
-                autoFocus
-                fullWidth
-                label="Question Text"
-                value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
-              />
+              <TextField value={questionText} onChange={(v) => setQuestionText(v)}>
+                <Label>Question Text</Label>
+                <Input autoFocus />
+              </TextField>
               <p className="text-sm font-semibold mt-4 mb-2 text-white">Answer Options</p>
-              <Input fullWidth label="Option 1" value={option1} onChange={(e) => setOption1(e.target.value)} className="mb-2" />
-              <Input fullWidth label="Option 2" value={option2} onChange={(e) => setOption2(e.target.value)} className="mb-2" />
-              <Input fullWidth label="Option 3" value={option3} onChange={(e) => setOption3(e.target.value)} className="mb-2" />
-              <Input fullWidth label="Option 4" value={option4} onChange={(e) => setOption4(e.target.value)} />
+              <TextField value={option1} onChange={(v) => setOption1(v)} className="mb-2">
+                <Label>Option 1</Label>
+                <Input />
+              </TextField>
+              <TextField value={option2} onChange={(v) => setOption2(v)} className="mb-2">
+                <Label>Option 2</Label>
+                <Input />
+              </TextField>
+              <TextField value={option3} onChange={(v) => setOption3(v)} className="mb-2">
+                <Label>Option 3</Label>
+                <Input />
+              </TextField>
+              <TextField value={option4} onChange={(v) => setOption4(v)}>
+                <Label>Option 4</Label>
+                <Input />
+              </TextField>
               <p className="text-sm font-semibold mt-4 mb-2 text-white">Correct Answer</p>
               <RadioGroup value={correctAnswer} onChange={setCorrectAnswer}>
                 <Radio value={option1} isDisabled={!option1}>{option1 || 'Option 1'}</Radio>
