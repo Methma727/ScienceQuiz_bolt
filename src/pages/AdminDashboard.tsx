@@ -1,26 +1,25 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Button, Card, CardContent, Chip, Input, Switch, Tabs, Tab, Tooltip, TextField, Label, Modal, useOverlayState, Radio, RadioGroup, toast } from '@heroui/react';
 import { supabase, type Quiz, type Question } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
-import { Plus, Pencil, Trash2, LogOut } from 'lucide-react';
 import LoadingScreen from '../components/LoadingScreen';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { isAdmin, signOut, loading: authLoading } = useApp();
-  const [tabValue, setTabValue] = useState('quizzes');
+  const [tabValue, setTabValue] = useState(0);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuizId, setSelectedQuizId] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  const quizDialog = useOverlayState();
-  const questionDialog = useOverlayState();
-  const confirmDialog = useOverlayState();
-
+  // Dialog states
+  const [quizDialogOpen, setQuizDialogOpen] = useState(false);
   const [quizDialogTitle, setQuizDialogTitle] = useState('');
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
+
+  const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [questionText, setQuestionText] = useState('');
   const [option1, setOption1] = useState('');
@@ -29,8 +28,9 @@ export default function AdminDashboard() {
   const [option4, setOption4] = useState('');
   const [correctAnswer, setCorrectAnswer] = useState('');
 
-  const [confirmDialogMessage, setConfirmDialogMessage] = useState('');
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [confirmDialogAction, setConfirmDialogAction] = useState<(() => void) | null>(null);
+  const [confirmDialogMessage, setConfirmDialogMessage] = useState('');
 
   useEffect(() => {
     fetchQuizzes();
@@ -63,6 +63,11 @@ export default function AdminDashboard() {
     setQuestions(data || []);
   };
 
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   const handleToggleActive = async (quiz: Quiz) => {
     if (quiz.is_active) {
       const { error } = await supabase
@@ -70,9 +75,9 @@ export default function AdminDashboard() {
         .update({ is_active: false })
         .eq('id', quiz.id);
       if (error) {
-        toast.danger('Failed to deactivate quiz');
+        showToast('Failed to deactivate quiz', 'error');
       } else {
-        toast.success('Quiz deactivated');
+        showToast('Quiz deactivated');
         fetchQuizzes();
       }
     } else {
@@ -82,9 +87,9 @@ export default function AdminDashboard() {
         .update({ is_active: true })
         .eq('id', quiz.id);
       if (error) {
-        toast.danger('Failed to activate quiz');
+        showToast('Failed to activate quiz', 'error');
       } else {
-        toast.success('Quiz activated');
+        showToast('Quiz activated');
         fetchQuizzes();
       }
     }
@@ -98,12 +103,12 @@ export default function AdminDashboard() {
       setEditingQuiz(null);
       setQuizDialogTitle('');
     }
-    quizDialog.open();
+    setQuizDialogOpen(true);
   };
 
   const handleSaveQuiz = async () => {
     if (!quizDialogTitle.trim()) {
-      toast.danger('Please enter a quiz title');
+      showToast('Please enter a quiz title', 'error');
       return;
     }
 
@@ -113,10 +118,10 @@ export default function AdminDashboard() {
         .update({ title: quizDialogTitle.trim() })
         .eq('id', editingQuiz.id);
       if (error) {
-        toast.danger('Failed to update quiz');
+        showToast('Failed to update quiz', 'error');
       } else {
-        toast.success('Quiz updated');
-        quizDialog.close();
+        showToast('Quiz updated');
+        setQuizDialogOpen(false);
         fetchQuizzes();
       }
     } else {
@@ -125,10 +130,10 @@ export default function AdminDashboard() {
         is_active: false,
       });
       if (error) {
-        toast.danger('Failed to create quiz');
+        showToast('Failed to create quiz', 'error');
       } else {
-        toast.success('Quiz created');
-        quizDialog.close();
+        showToast('Quiz created');
+        setQuizDialogOpen(false);
         fetchQuizzes();
       }
     }
@@ -139,17 +144,17 @@ export default function AdminDashboard() {
     setConfirmDialogAction(() => async () => {
       const { error } = await supabase.from('quizzes').delete().eq('id', quiz.id);
       if (error) {
-        toast.danger('Failed to delete quiz');
+        showToast('Failed to delete quiz', 'error');
       } else {
-        toast.success('Quiz deleted');
+        showToast('Quiz deleted');
         fetchQuizzes();
         if (selectedQuizId === quiz.id) {
           setSelectedQuizId('');
         }
       }
-      confirmDialog.close();
+      setConfirmDialogOpen(false);
     });
-    confirmDialog.open();
+    setConfirmDialogOpen(true);
   };
 
   const handleOpenQuestionDialog = (question?: Question) => {
@@ -170,24 +175,24 @@ export default function AdminDashboard() {
       setOption4('');
       setCorrectAnswer('');
     }
-    questionDialog.open();
+    setQuestionDialogOpen(true);
   };
 
   const handleSaveQuestion = async () => {
     if (!questionText.trim()) {
-      toast.danger('Please enter question text');
+      showToast('Please enter question text', 'error');
       return;
     }
     if (!option1.trim() || !option2.trim() || !option3.trim() || !option4.trim()) {
-      toast.danger('Please fill in all 4 options');
+      showToast('Please fill in all 4 options', 'error');
       return;
     }
     if (!correctAnswer) {
-      toast.danger('Please select the correct answer');
+      showToast('Please select the correct answer', 'error');
       return;
     }
     if (!selectedQuizId) {
-      toast.danger('Please select a quiz first');
+      showToast('Please select a quiz first', 'error');
       return;
     }
 
@@ -203,10 +208,10 @@ export default function AdminDashboard() {
         })
         .eq('id', editingQuestion.id);
       if (error) {
-        toast.danger('Failed to update question');
+        showToast('Failed to update question', 'error');
       } else {
-        toast.success('Question updated');
-        questionDialog.close();
+        showToast('Question updated');
+        setQuestionDialogOpen(false);
         fetchQuestions(selectedQuizId);
       }
     } else {
@@ -217,10 +222,10 @@ export default function AdminDashboard() {
         correct_answer: correctAnswer,
       });
       if (error) {
-        toast.danger('Failed to create question');
+        showToast('Failed to create question', 'error');
       } else {
-        toast.success('Question created');
-        questionDialog.close();
+        showToast('Question created');
+        setQuestionDialogOpen(false);
         fetchQuestions(selectedQuizId);
       }
     }
@@ -231,106 +236,102 @@ export default function AdminDashboard() {
     setConfirmDialogAction(() => async () => {
       const { error } = await supabase.from('questions').delete().eq('id', question.id);
       if (error) {
-        toast.danger('Failed to delete question');
+        showToast('Failed to delete question', 'error');
       } else {
-        toast.success('Question deleted');
+        showToast('Question deleted');
         fetchQuestions(selectedQuizId);
       }
-      confirmDialog.close();
+      setConfirmDialogOpen(false);
     });
-    confirmDialog.open();
+    setConfirmDialogOpen(true);
   };
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
-  if (authLoading) {
-    return <LoadingScreen />;
-  }
-
-  if (!isAdmin) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (loading) {
-    return <LoadingScreen message="Loading dashboard..." />;
-  }
+  if (authLoading) return <LoadingScreen />;
+  if (!isAdmin) return <Navigate to="/login" replace />;
+  if (loading) return <LoadingScreen message="Loading dashboard..." />;
 
   return (
-    <div className="min-h-screen bg-bg-default">
-      <header className="flex items-center px-4 py-3 border-b border-[#2a2a3e] bg-[#0f0f23]">
-        <h1 className="flex-1 text-lg font-semibold text-white">Admin Dashboard</h1>
-        <Tooltip>
-          <Button isIconOnly variant="ghost" onPress={handleSignOut}>
-            <LogOut size={20} />
-          </Button>
-          <Tooltip.Content>Sign Out</Tooltip.Content>
-        </Tooltip>
-      </header>
+    <div style={{ minHeight: '100vh' }}>
+      {/* Navbar */}
+      <nav className="navbar">
+        <div className="navbar-content">
+          <span className="navbar-title">Admin Dashboard</span>
+          <button className="btn btn-ghost btn-small" onClick={handleSignOut}>
+            Sign Out
+          </button>
+        </div>
+      </nav>
 
-      <div className="max-w-5xl mx-auto px-4 py-4">
-        <Tabs selectedKey={tabValue} onSelectionChange={(key) => setTabValue(key as string)}>
-          <Tab id="quizzes">Quizzes</Tab>
-          <Tab id="questions">Questions</Tab>
-        </Tabs>
+      <div className="container container-lg" style={{ paddingTop: '24px' }}>
+        {/* Tabs */}
+        <div className="tabs mb-3" style={{ marginBottom: '24px' }}>
+          <button
+            className={`tab ${tabValue === 0 ? 'active' : ''}`}
+            onClick={() => setTabValue(0)}
+          >
+            Quizzes
+          </button>
+          <button
+            className={`tab ${tabValue === 1 ? 'active' : ''}`}
+            onClick={() => setTabValue(1)}
+          >
+            Questions
+          </button>
+        </div>
 
-        {tabValue === 'quizzes' && (
-          <div className="mt-4">
-            <div className="flex justify-end mb-3">
-              <Button onPress={() => handleOpenQuizDialog()}>
-                <Plus size={20} /> Add Quiz
-              </Button>
+        {/* Quizzes Tab */}
+        {tabValue === 0 && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+              <button className="btn btn-primary" onClick={() => handleOpenQuizDialog()}>
+                + Add Quiz
+              </button>
             </div>
             {quizzes.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <p className="text-text-secondary">No quizzes yet. Create one to get started.</p>
-                </CardContent>
-              </Card>
+              <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
+                <p className="text-secondary">No quizzes yet. Create one to get started.</p>
+              </div>
             ) : (
-              <div className="rounded-xl border border-[#2a2a3e] overflow-hidden">
-                <table className="w-full">
+              <div className="table-container glass">
+                <table className="table">
                   <thead>
-                    <tr style={{ backgroundColor: '#14141f' }}>
-                      <th className="px-4 py-3 text-left font-semibold text-sm">Quiz Title</th>
-                      <th className="px-4 py-3 text-center font-semibold text-sm">Status</th>
-                      <th className="px-4 py-3 text-center font-semibold text-sm">Questions</th>
-                      <th className="px-4 py-3 text-right font-semibold text-sm">Actions</th>
+                    <tr>
+                      <th>Quiz Title</th>
+                      <th style={{ textAlign: 'center' }}>Active</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {quizzes.map((quiz) => (
-                      <tr key={quiz.id} className="border-t border-[#2a2a3e] hover:bg-[rgba(233,69,96,0.04)]">
-                        <td className="px-4 py-3 font-medium text-white">{quiz.title}</td>
-                        <td className="px-4 py-3 text-center">
-                          <Tooltip>
-                            <Switch
-                              isSelected={quiz.is_active}
-                              onChange={() => handleToggleActive(quiz)}
-                            />
-                            <Tooltip.Content>{quiz.is_active ? 'Click to deactivate' : 'Click to activate'}</Tooltip.Content>
-                          </Tooltip>
+                      <tr key={quiz.id}>
+                        <td style={{ fontWeight: 500 }}>{quiz.title}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className={`switch ${quiz.is_active ? 'active' : ''}`}
+                            onClick={() => handleToggleActive(quiz)}
+                            title={quiz.is_active ? 'Click to deactivate' : 'Click to activate'}
+                          />
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <Chip size="sm" color={quiz.is_active ? 'success' : 'default'}>
-                            {quiz.is_active ? 'Active' : 'Inactive'}
-                          </Chip>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Tooltip>
-                            <Button isIconOnly size="sm" variant="ghost" onPress={() => handleOpenQuizDialog(quiz)} className="mr-1">
-                              <Pencil size={16} />
-                            </Button>
-                            <Tooltip.Content>Edit</Tooltip.Content>
-                          </Tooltip>
-                          <Tooltip>
-                            <Button isIconOnly size="sm" variant="ghost" onPress={() => handleDeleteQuiz(quiz)}>
-                              <Trash2 size={16} style={{ color: '#e94560' }} />
-                            </Button>
-                            <Tooltip.Content>Delete</Tooltip.Content>
-                          </Tooltip>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="btn btn-ghost btn-small"
+                            onClick={() => handleOpenQuizDialog(quiz)}
+                            style={{ marginRight: '8px' }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-small"
+                            onClick={() => handleDeleteQuiz(quiz)}
+                            style={{ color: 'var(--accent-primary)' }}
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -338,75 +339,74 @@ export default function AdminDashboard() {
                 </table>
               </div>
             )}
-          </div>
+          </>
         )}
 
-        {tabValue === 'questions' && (
-          <div className="mt-4">
-            <Card className="mb-3">
-              <CardContent className="flex gap-3 items-center p-4">
-                <select
-                  value={selectedQuizId}
-                  onChange={(e) => setSelectedQuizId(e.target.value)}
-                  className="flex-1 p-2 rounded-lg border border-[#2a2a3e] bg-[#14141f] text-[#eaeaea] text-sm focus:outline-none focus:border-[#e94560]"
-                >
-                  <option value="">Select a quiz</option>
-                  {quizzes.map((quiz) => (
-                    <option key={quiz.id} value={quiz.id}>
-                      {quiz.title} {quiz.is_active ? '(Active)' : ''}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  onPress={() => handleOpenQuestionDialog()}
-                  isDisabled={!selectedQuizId}
-                >
-                  <Plus size={20} /> Add Question
-                </Button>
-              </CardContent>
-            </Card>
+        {/* Questions Tab */}
+        {tabValue === 1 && (
+          <>
+            <div className="glass" style={{ padding: '16px', marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+              <select
+                className="select"
+                value={selectedQuizId}
+                onChange={(e) => setSelectedQuizId(e.target.value)}
+                style={{ flex: 1 }}
+              >
+                {quizzes.map((quiz) => (
+                  <option key={quiz.id} value={quiz.id}>
+                    {quiz.title} {quiz.is_active ? '(Active)' : ''}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="btn btn-primary"
+                onClick={() => handleOpenQuestionDialog()}
+                disabled={!selectedQuizId}
+              >
+                + Add Question
+              </button>
+            </div>
+
             {!selectedQuizId ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <p className="text-text-secondary">Select a quiz to manage questions.</p>
-                </CardContent>
-              </Card>
+              <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
+                <p className="text-secondary">Select a quiz to manage questions.</p>
+              </div>
             ) : questions.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <p className="text-text-secondary">No questions for this quiz. Add some to get started.</p>
-                </CardContent>
-              </Card>
+              <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
+                <p className="text-secondary">No questions for this quiz. Add some to get started.</p>
+              </div>
             ) : (
-              <div className="rounded-xl border border-[#2a2a3e] overflow-hidden">
-                <table className="w-full">
+              <div className="table-container glass">
+                <table className="table">
                   <thead>
-                    <tr style={{ backgroundColor: '#14141f' }}>
-                      <th className="px-4 py-3 text-left font-semibold text-sm">Question</th>
-                      <th className="px-4 py-3 text-center font-semibold text-sm">Correct Answer</th>
-                      <th className="px-4 py-3 text-right font-semibold text-sm">Actions</th>
+                    <tr>
+                      <th>Question</th>
+                      <th style={{ textAlign: 'center' }}>Correct Answer</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {questions.map((question) => (
-                      <tr key={question.id} className="border-t border-[#2a2a3e] hover:bg-[rgba(233,69,96,0.04)]">
-                        <td className="px-4 py-3 text-white">{question.question_text}</td>
-                        <td className="px-4 py-3 text-center">
-                          <Chip size="sm" color="success">{question.correct_answer}</Chip>
+                      <tr key={question.id}>
+                        <td>{question.question_text}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className="chip chip-success">{question.correct_answer}</span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <Tooltip>
-                            <Button isIconOnly size="sm" variant="ghost" onPress={() => handleOpenQuestionDialog(question)} className="mr-1">
-                              <Pencil size={16} />
-                            </Button>
-                            <Tooltip.Content>Edit</Tooltip.Content>
-                          </Tooltip>
-                          <Tooltip>
-                            <Button isIconOnly size="sm" variant="ghost" onPress={() => handleDeleteQuestion(question)}>
-                              <Trash2 size={16} style={{ color: '#e94560' }} />
-                            </Button>
-                            <Tooltip.Content>Delete</Tooltip.Content>
-                          </Tooltip>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="btn btn-ghost btn-small"
+                            onClick={() => handleOpenQuestionDialog(question)}
+                            style={{ marginRight: '8px' }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-small"
+                            onClick={() => handleDeleteQuestion(question)}
+                            style={{ color: 'var(--accent-primary)' }}
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -414,102 +414,137 @@ export default function AdminDashboard() {
                 </table>
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
-      {/* Quiz Modal */}
-      <Modal state={quizDialog}>
-        <Modal.Backdrop />
-        <Modal.Container>
-          <Modal.Dialog>
-            <Modal.Header>
-              <Modal.Heading>{editingQuiz ? 'Edit Quiz' : 'New Quiz'}</Modal.Heading>
-            </Modal.Header>
-            <Modal.Body>
-              <TextField value={quizDialogTitle} onChange={(v) => setQuizDialogTitle(v)}>
-                <Label>Quiz Title</Label>
-                <Input autoFocus />
-              </TextField>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="ghost" onPress={() => quizDialog.close()}>Cancel</Button>
-              <Button onPress={handleSaveQuiz}>
+      {/* Quiz Dialog */}
+      {quizDialogOpen && (
+        <div className="modal-overlay" onClick={() => setQuizDialogOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">{editingQuiz ? 'Edit Quiz' : 'New Quiz'}</h3>
+            </div>
+            <div>
+              <label className="text-secondary" style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem' }}>
+                Quiz Title
+              </label>
+              <input
+                type="text"
+                className="input"
+                value={quizDialogTitle}
+                onChange={(e) => setQuizDialogTitle(e.target.value)}
+                placeholder="Enter quiz title"
+                autoFocus
+              />
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setQuizDialogOpen(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveQuiz}>
                 {editingQuiz ? 'Update' : 'Create'}
-              </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Question Modal */}
-      <Modal state={questionDialog}>
-        <Modal.Backdrop />
-        <Modal.Container>
-          <Modal.Dialog>
-            <Modal.Header>
-              <Modal.Heading>{editingQuestion ? 'Edit Question' : 'New Question'}</Modal.Heading>
-            </Modal.Header>
-            <Modal.Body>
-              <TextField value={questionText} onChange={(v) => setQuestionText(v)}>
-                <Label>Question Text</Label>
-                <Input autoFocus />
-              </TextField>
-              <p className="text-sm font-semibold mt-4 mb-2 text-white">Answer Options</p>
-              <TextField value={option1} onChange={(v) => setOption1(v)} className="mb-2">
-                <Label>Option 1</Label>
-                <Input />
-              </TextField>
-              <TextField value={option2} onChange={(v) => setOption2(v)} className="mb-2">
-                <Label>Option 2</Label>
-                <Input />
-              </TextField>
-              <TextField value={option3} onChange={(v) => setOption3(v)} className="mb-2">
-                <Label>Option 3</Label>
-                <Input />
-              </TextField>
-              <TextField value={option4} onChange={(v) => setOption4(v)}>
-                <Label>Option 4</Label>
-                <Input />
-              </TextField>
-              <p className="text-sm font-semibold mt-4 mb-2 text-white">Correct Answer</p>
-              <RadioGroup value={correctAnswer} onChange={setCorrectAnswer}>
-                <Radio value={option1} isDisabled={!option1}>{option1 || 'Option 1'}</Radio>
-                <Radio value={option2} isDisabled={!option2}>{option2 || 'Option 2'}</Radio>
-                <Radio value={option3} isDisabled={!option3}>{option3 || 'Option 3'}</Radio>
-                <Radio value={option4} isDisabled={!option4}>{option4 || 'Option 4'}</Radio>
-              </RadioGroup>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="ghost" onPress={() => questionDialog.close()}>Cancel</Button>
-              <Button onPress={handleSaveQuestion}>
+      {/* Question Dialog */}
+      {questionDialogOpen && (
+        <div className="modal-overlay" onClick={() => setQuestionDialogOpen(false)}>
+          <div className="modal" style={{ maxWidth: '560px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">{editingQuestion ? 'Edit Question' : 'New Question'}</h3>
+            </div>
+            <div>
+              <label className="text-secondary" style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem' }}>
+                Question Text
+              </label>
+              <input
+                type="text"
+                className="input"
+                value={questionText}
+                onChange={(e) => setQuestionText(e.target.value)}
+                placeholder="Enter question"
+                autoFocus
+                style={{ marginBottom: '16px' }}
+              />
+
+              <p className="text-secondary" style={{ fontSize: '0.875rem', marginBottom: '8px' }}>Answer Options</p>
+              <input type="text" className="input" value={option1} onChange={(e) => setOption1(e.target.value)} placeholder="Option 1" style={{ marginBottom: '8px' }} />
+              <input type="text" className="input" value={option2} onChange={(e) => setOption2(e.target.value)} placeholder="Option 2" style={{ marginBottom: '8px' }} />
+              <input type="text" className="input" value={option3} onChange={(e) => setOption3(e.target.value)} placeholder="Option 3" style={{ marginBottom: '8px' }} />
+              <input type="text" className="input" value={option4} onChange={(e) => setOption4(e.target.value)} placeholder="Option 4" style={{ marginBottom: '16px' }} />
+
+              <p className="text-secondary" style={{ fontSize: '0.875rem', marginBottom: '8px' }}>Correct Answer</p>
+              <div className="radio-group">
+                {[option1, option2, option3, option4].filter(Boolean).map((opt) => (
+                  <div
+                    key={opt}
+                    className={`radio-option ${correctAnswer === opt ? 'selected' : ''}`}
+                    onClick={() => setCorrectAnswer(opt)}
+                  >
+                    <div className="radio-circle" />
+                    <span>{opt}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setQuestionDialogOpen(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveQuestion}>
                 {editingQuestion ? 'Update' : 'Create'}
-              </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Confirmation Modal */}
-      <Modal state={confirmDialog}>
-        <Modal.Backdrop />
-        <Modal.Container>
-          <Modal.Dialog>
-            <Modal.Header>
-              <Modal.Heading>Confirm Delete</Modal.Heading>
-            </Modal.Header>
-            <Modal.Body>
-              <p className="text-white">{confirmDialogMessage}</p>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="ghost" onPress={() => confirmDialog.close()}>Cancel</Button>
-              <Button onPress={() => { confirmDialogAction?.(); }}>
+      {/* Confirm Dialog */}
+      {confirmDialogOpen && (
+        <div className="modal-overlay" onClick={() => setConfirmDialogOpen(false)}>
+          <div className="modal" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Confirm Delete</h3>
+            </div>
+            <p className="text-secondary">{confirmDialogMessage}</p>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setConfirmDialogOpen(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                style={{ background: 'var(--accent-primary)' }}
+                onClick={() => confirmDialogAction?.()}
+              >
                 Delete
-              </Button>
-            </Modal.Footer>
-          </Modal.Dialog>
-        </Modal.Container>
-      </Modal>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '12px 24px',
+          background: toast.type === 'error' ? 'rgba(233, 69, 96, 0.9)' : 'rgba(0, 217, 165, 0.9)',
+          color: 'white',
+          borderRadius: '12px',
+          fontWeight: 500,
+          zIndex: 1001,
+          animation: 'fadeIn 0.3s ease',
+        }}>
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

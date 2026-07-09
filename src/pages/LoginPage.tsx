@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Card, CardContent, Spinner, Alert, TextField, Label } from '@heroui/react';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { ADMIN_EMAIL } from '../lib/constants';
-import { GraduationCap } from 'lucide-react';
+import LoadingScreen from '../components/LoadingScreen';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -45,48 +44,95 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-bg-default p-4">
-      <Card className="max-w-[420px] w-full">
-        <CardContent className="p-8">
-          <div className="text-center mb-6">
-            <GraduationCap className="mx-auto mb-2" size={48} style={{ color: '#1a1a2e' }} />
-            <h2 className="text-2xl font-semibold" style={{ color: '#1a1a2e' }}>Quiz App</h2>
-            <p className="text-sm text-text-secondary">Sign in to continue</p>
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '100vh',
+      padding: '24px',
+    }}>
+      <div className="glass" style={{ maxWidth: '400px', width: '100%', padding: '32px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            margin: '0 auto 12px',
+            background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)',
+            borderRadius: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '28px',
+            fontWeight: 700,
+          }}>
+            Q
           </div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '4px' }}>Sign In</h1>
+          <p className="text-secondary">Access your account</p>
+        </div>
 
-          {error && (
-            <Alert status="danger" className="mb-3">
-              <Alert.Content>
-                <Alert.Description>{error}</Alert.Description>
-              </Alert.Content>
-            </Alert>
-          )}
+        {error && (
+          <div style={{
+            padding: '12px 16px',
+            background: 'rgba(233, 69, 96, 0.1)',
+            border: '1px solid rgba(233, 69, 96, 0.3)',
+            borderRadius: '12px',
+            color: '#ff6b6b',
+            marginBottom: '16px',
+            fontSize: '0.875rem',
+          }}>
+            {error}
+          </div>
+        )}
 
-          <form onSubmit={handleLogin}>
-            <div className="mb-3">
-              <TextField value={email} onChange={(v) => setEmail(v)} isDisabled={loading}>
-                <Label>Email</Label>
-                <Input type="email" />
-              </TextField>
-            </div>
-            <div className="mb-4">
-              <TextField value={password} onChange={(v) => setPassword(v)} isDisabled={loading}>
-                <Label>Password</Label>
-                <Input type="password" />
-              </TextField>
-            </div>
-            <Button
-              fullWidth
-              type="submit"
-              size="lg"
-              isDisabled={loading}
-              className="py-4"
-            >
-              {loading ? <Spinner size="sm" color="current" /> : 'Sign In'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: '16px' }}>
+            <label className="text-secondary" style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem' }}>
+              Email
+            </label>
+            <input
+              type="email"
+              className="input"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={loading}
+              placeholder="Enter your email"
+            />
+          </div>
+          <div style={{ marginBottom: '24px' }}>
+            <label className="text-secondary" style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem' }}>
+              Password
+            </label>
+            <input
+              type="password"
+              className="input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading}
+              placeholder="Enter your password"
+            />
+          </div>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading}
+            style={{ width: '100%' }}
+          >
+            {loading ? <LoadingScreen message="" /> : 'Sign In'}
+          </button>
+        </form>
+
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <button
+            className="btn btn-ghost btn-small"
+            onClick={() => navigate('/')}
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

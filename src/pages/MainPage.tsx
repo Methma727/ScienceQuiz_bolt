@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Button, Card, CardContent, CardFooter, Chip, Tabs, Tab } from '@heroui/react';
 import { supabase, type Quiz } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
-import { NotebookText, Trophy, LogOut, Play, Home } from 'lucide-react';
 import LoadingScreen from '../components/LoadingScreen';
 
 interface LeaderboardRow {
@@ -19,11 +16,11 @@ interface LeaderboardRow {
 export default function MainPage() {
   const navigate = useNavigate();
   const { isAdmin, signOut } = useApp();
-  const [tabValue, setTabValue] = useState('quizzes');
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [tabValue, setTabValue] = useState(0);
+  const [activeQuizzes, setActiveQuizzes] = useState<Quiz[]>([]);
   const [allQuizzes, setAllQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedQuizId, setSelectedQuizId] = useState<string>('all');
+  const [selectedQuizId, setSelectedQuizId] = useState<string>('');
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
 
   useEffect(() => {
@@ -37,10 +34,12 @@ export default function MainPage() {
   }, [selectedQuizId]);
 
   useEffect(() => {
-    if (allQuizzes.length > 0 && selectedQuizId === 'all') {
+    if (allQuizzes.length > 0 && selectedQuizId === '') {
       const activeQuiz = allQuizzes.find((q) => q.is_active);
       if (activeQuiz) {
         setSelectedQuizId(activeQuiz.id);
+      } else if (allQuizzes.length > 0) {
+        setSelectedQuizId(allQuizzes[0].id);
       }
     }
   }, [allQuizzes, selectedQuizId]);
@@ -52,8 +51,8 @@ export default function MainPage() {
       .order('created_at', { ascending: false });
     setAllQuizzes(quizzesData || []);
 
-    const activeQuizzes = quizzesData?.filter((q) => q.is_active) || [];
-    setQuizzes(activeQuizzes);
+    const active = quizzesData?.filter((q) => q.is_active) || [];
+    setActiveQuizzes(active);
 
     setLoading(false);
   };
@@ -79,13 +78,11 @@ export default function MainPage() {
     });
   };
 
-  const getRankColor = (rank: number) => {
-    switch (rank) {
-      case 1: return 'bg-yellow-400 text-black';
-      case 2: return 'bg-gray-300 text-black';
-      case 3: return 'bg-amber-700 text-white';
-      default: return 'bg-[#2a2a3e] text-[#eaeaea]';
-    }
+  const getRankClass = (rank: number) => {
+    if (rank === 1) return 'rank-1';
+    if (rank === 2) return 'rank-2';
+    if (rank === 3) return 'rank-3';
+    return 'rank-default';
   };
 
   const handleSignOut = async () => {
@@ -98,167 +95,169 @@ export default function MainPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-default">
-      <header className="flex items-center px-4 py-3 border-b border-[#2a2a3e]" style={{ backgroundColor: '#0f0f23' }}>
-        <h1 className="flex-1 text-lg font-semibold text-white">QuizMaster</h1>
-        {isAdmin && (
-          <Button variant="ghost" size="sm" onPress={handleSignOut}>
-            <LogOut size={16} /> Sign Out
-          </Button>
-        )}
-      </header>
+    <div style={{ minHeight: '100vh' }}>
+      {/* Navbar */}
+      <nav className="navbar">
+        <div className="navbar-content">
+          <span className="navbar-title">QuizMaster</span>
+          {isAdmin ? (
+            <button className="btn btn-ghost btn-small" onClick={handleSignOut}>
+              Sign Out
+            </button>
+          ) : null}
+        </div>
+      </nav>
 
-      <div className="max-w-2xl mx-auto px-4 py-4">
-        <Tabs selectedKey={tabValue} onSelectionChange={(key) => setTabValue(key as string)}>
-          <Tab id="quizzes">Quizzes</Tab>
-          <Tab id="leaderboard">Leaderboard</Tab>
-        </Tabs>
+      <div className="container">
+        {/* Tabs */}
+        <div className="tabs mb-3" style={{ marginBottom: '24px' }}>
+          <button
+            className={`tab ${tabValue === 0 ? 'active' : ''}`}
+            onClick={() => setTabValue(0)}
+          >
+            Quizzes
+          </button>
+          <button
+            className={`tab ${tabValue === 1 ? 'active' : ''}`}
+            onClick={() => setTabValue(1)}
+          >
+            Leaderboard
+          </button>
+        </div>
 
-        {tabValue === 'quizzes' && (
-          <div className="mt-4">
-            {quizzes.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <NotebookText className="mx-auto mb-3" size={64} style={{ color: '#a0a0a0' }} />
-                  <p className="text-lg text-text-secondary">No active quizzes</p>
-                  <p className="text-sm text-text-secondary mt-2">Check back later for new challenges</p>
-                </CardContent>
-              </Card>
+        {/* Quizzes Tab */}
+        {tabValue === 0 && (
+          <>
+            {activeQuizzes.length === 0 ? (
+              <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>?</div>
+                <p className="text-secondary">No active quizzes available</p>
+                <p className="text-muted" style={{ fontSize: '0.875rem', marginTop: '8px' }}>
+                  Check back later for new challenges
+                </p>
+              </div>
             ) : (
-              <div className="flex flex-col gap-3">
-                {quizzes.map((quiz) => (
-                  <motion.div
+              <div style={{ display: 'grid', gap: '16px' }}>
+                {activeQuizzes.map((quiz) => (
+                  <div
                     key={quiz.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="card-hover"
+                    className="glass"
+                    style={{
+                      padding: '24px',
+                      transition: 'transform 0.2s, box-shadow 0.2s',
+                    }}
                   >
-                    <Card className="transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-3">
-                          <NotebookText size={40} style={{ color: '#e94560' }} />
-                          <div className="flex-1">
-                            <h4 className="text-lg font-semibold text-white">{quiz.title}</h4>
-                            <Chip size="sm" color="success" className="mt-1">Active</Chip>
-                          </div>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="px-4 pb-4 pt-0">
-                        <Button
-                          size="lg"
-                          fullWidth
-                          onPress={() => navigate('/start')}
-                          className="py-4"
-                          style={{
-                            background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)',
-                            color: 'white',
-                            border: 'none',
-                          }}
-                        >
-                          <Play size={20} /> Start Quiz
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  </motion.div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '24px',
+                      }}>
+                        Q
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ fontWeight: 600, marginBottom: '4px' }}>{quiz.title}</h4>
+                        <span className="chip chip-success">Active</span>
+                      </div>
+                    </div>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => navigate('/start')}
+                      style={{ width: '100%' }}
+                    >
+                      Start Quiz
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
-          </div>
+          </>
         )}
 
-        {tabValue === 'leaderboard' && (
-          <div className="mt-4">
-            <Card className="mb-4">
-              <CardContent className="p-3">
-                <select
-                  value={selectedQuizId}
-                  onChange={(e) => setSelectedQuizId(e.target.value)}
-                  className="w-full p-2 rounded-lg border border-[#2a2a3e] bg-[#14141f] text-[#eaeaea] text-sm focus:outline-none focus:border-[#e94560]"
-                >
-                  <option value="all">All Quizzes</option>
-                  {allQuizzes.map((quiz) => (
-                    <option key={quiz.id} value={quiz.id}>
-                      {quiz.title} {quiz.is_active ? '(Active)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </CardContent>
-            </Card>
+        {/* Leaderboard Tab */}
+        {tabValue === 1 && (
+          <>
+            {/* Filter */}
+            <div className="glass mb-3" style={{ padding: '16px', marginBottom: '24px' }}>
+              <select
+                className="select"
+                value={selectedQuizId}
+                onChange={(e) => setSelectedQuizId(e.target.value)}
+              >
+                <option value="all">All Quizzes</option>
+                {allQuizzes.map((quiz) => (
+                  <option key={quiz.id} value={quiz.id}>
+                    {quiz.title} {quiz.is_active ? '(Active)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             {leaderboard.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Trophy className="mx-auto mb-3" size={64} style={{ color: '#a0a0a0' }} />
-                  <p className="text-lg text-text-secondary">No scores yet</p>
-                  <p className="text-sm text-text-secondary mt-2 mb-4">Be the first to complete the quiz!</p>
-                  <Button onPress={() => navigate('/start')}>Take Quiz</Button>
-                </CardContent>
-              </Card>
+              <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏆</div>
+                <p className="text-secondary">No scores yet</p>
+                <p className="text-muted" style={{ fontSize: '0.875rem', marginTop: '8px', marginBottom: '24px' }}>
+                  Be the first to complete the quiz!
+                </p>
+                <button className="btn btn-primary" onClick={() => navigate('/start')}>
+                  Take Quiz
+                </button>
+              </div>
             ) : (
-              <div className="rounded-xl border border-[#2a2a3e] overflow-hidden">
-                <table className="w-full">
+              <div className="table-container glass">
+                <table className="table">
                   <thead>
-                    <tr style={{ backgroundColor: '#14141f' }}>
-                      <th className="px-4 py-3 text-center font-semibold text-sm w-[80px]">Rank</th>
-                      <th className="px-4 py-3 text-left font-semibold text-sm">Student</th>
-                      <th className="px-4 py-3 text-center font-semibold text-sm">Score</th>
-                      {selectedQuizId === 'all' && (
-                        <th className="px-4 py-3 text-left font-semibold text-sm">Quiz</th>
-                      )}
-                      <th className="px-4 py-3 text-left font-semibold text-sm">Date</th>
+                    <tr>
+                      <th style={{ width: '80px', textAlign: 'center' }}>Rank</th>
+                      <th>Student</th>
+                      <th style={{ textAlign: 'center' }}>Score</th>
+                      {selectedQuizId === 'all' && <th>Quiz</th>}
+                      <th>Date</th>
                     </tr>
                   </thead>
                   <tbody>
                     {leaderboard.map((entry, index) => {
                       const rank = index + 1;
                       return (
-                        <motion.tr
-                          key={entry.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="border-t border-[#2a2a3e] hover:bg-[rgba(233,69,96,0.04)]"
-                        >
-                          <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full text-sm font-semibold ${getRankColor(rank)}`}>
+                        <tr key={entry.id} className="animate-fade-in" style={{ animationDelay: `${index * 0.05}s` }}>
+                          <td style={{ textAlign: 'center' }}>
+                            <span className={`rank-badge ${getRankClass(rank)}`}>
                               {rank}
                             </span>
                           </td>
-                          <td className="px-4 py-3 font-medium text-white">{entry.student_name}</td>
-                          <td className="px-4 py-3 text-center">
-                            <Chip size="sm" color={rank <= 3 ? 'accent' : 'default'}>{entry.score}</Chip>
+                          <td style={{ fontWeight: 500 }}>{entry.student_name}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span className={`chip ${rank <= 3 ? 'chip-primary' : 'chip-default'}`}>
+                              {entry.score}
+                            </span>
                           </td>
                           {selectedQuizId === 'all' && (
-                            <td className="px-4 py-3 text-sm" style={{ color: '#eaeaea' }}>
+                            <td className="text-secondary">
                               {(Array.isArray(entry.quizzes) ? entry.quizzes[0]?.title : entry.quizzes?.title) || 'Unknown'}
                             </td>
                           )}
-                          <td className="px-4 py-3 text-sm" style={{ color: '#eaeaea' }}>{formatDate(entry.created_at)}</td>
-                        </motion.tr>
+                          <td className="text-muted">{formatDate(entry.created_at)}</td>
+                        </tr>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
-      <div className="fixed bottom-6 right-6">
-        <Button
-          isIconOnly
-          onPress={() => navigate('/')}
-          className="rounded-full shadow-lg"
-          style={{
-            backgroundColor: '#e94560',
-            color: 'white',
-            boxShadow: '0 4px 20px rgba(233, 69, 96, 0.4)',
-          }}
-        >
-          <Home size={24} />
-        </Button>
-      </div>
+      {/* Floating Home Button */}
+      <button className="fab" onClick={() => navigate('/')} title="Home">
+        ⌂
+      </button>
     </div>
   );
 }

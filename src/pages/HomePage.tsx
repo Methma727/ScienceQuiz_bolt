@@ -1,80 +1,99 @@
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@heroui/react';
 import { useApp } from '../context/AppContext';
-import { GraduationCap, NotebookText, Trophy, Shield } from 'lucide-react';
 
 export default function HomePage() {
   const navigate = useNavigate();
   const { isAdmin } = useApp();
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-bg-default relative overflow-hidden">
-      <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(233, 69, 96, 0.15) 0%, transparent 70%)' }}
-      />
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Background gradient overlay */}
+      <div style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '800px',
+        height: '800px',
+        background: 'radial-gradient(circle, rgba(233, 69, 96, 0.15) 0%, transparent 70%)',
+        pointerEvents: 'none',
+      }} />
 
-      <div className="max-w-sm w-full text-center relative z-10 px-4">
-        <div className="mb-8">
-          <GraduationCap className="mx-auto mb-4" size={72} style={{ color: '#e94560' }} />
-          <h1
-            className="text-4xl sm:text-5xl md:text-6xl font-bold mb-2"
-            style={{
-              background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 50%, #e94560 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
+      <div style={{
+        textAlign: 'center',
+        position: 'relative',
+        zIndex: 1,
+        maxWidth: '600px',
+        padding: '24px',
+      }}>
+        {/* Logo */}
+        <div style={{ marginBottom: '32px' }}>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            margin: '0 auto 16px',
+            background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)',
+            borderRadius: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '40px',
+          }}>
+            Q
+          </div>
+          <h1 style={{
+            fontSize: '3.5rem',
+            fontWeight: 800,
+            background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 50%, #e94560 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            marginBottom: '8px',
+            letterSpacing: '-0.02em',
+          }}>
             QuizMaster
           </h1>
-          <p className="text-text-secondary text-lg font-normal">
+          <p className="text-secondary" style={{ fontSize: '1.125rem', fontWeight: 400 }}>
             Challenge yourself. Climb the ranks.
           </p>
         </div>
 
-        <Button
-          size="lg"
-          onPress={() => navigate(isAdmin ? '/admin' : '/start')}
-          className="w-full py-6 mb-6 text-lg font-semibold border-none"
+        {/* Welcome Button */}
+        <button
+          className="btn btn-primary btn-large"
+          onClick={() => navigate(isAdmin ? '/admin' : '/start')}
           style={{
-            background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)',
-            boxShadow: '0 8px 32px rgba(233, 69, 96, 0.4)',
-            color: 'white',
+            marginBottom: '24px',
+            padding: '20px 48px',
+            fontSize: '1.25rem',
           }}
         >
           {isAdmin ? 'Go to Dashboard' : 'Get Started'}
-        </Button>
+        </button>
 
-        <div className="flex gap-3 justify-center flex-wrap">
-          <Button
-            variant="outline"
-            size="lg"
-            onPress={() => navigate('/main')}
-            className="px-6"
-            style={{ borderColor: '#2a2a3e', color: '#eaeaea' }}
-          >
-            <NotebookText size={20} /> View Quizzes
-          </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            onPress={() => navigate('/main')}
-            className="px-6"
-            style={{ borderColor: '#2a2a3e', color: '#eaeaea' }}
-          >
-            <Trophy size={20} /> Leaderboard
-          </Button>
+        {/* Secondary Actions */}
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={() => navigate('/main')}>
+            View Quizzes
+          </button>
+          <button className="btn btn-secondary" onClick={() => navigate('/main')}>
+            Leaderboard
+          </button>
         </div>
 
-        <div className="mt-12">
-          <Button
-            variant="ghost"
-            size="sm"
-            onPress={() => navigate('/login')}
-            className="text-text-secondary opacity-70"
-          >
-            <Shield size={16} /> Admin Login
-          </Button>
+        {/* Admin Link */}
+        <div style={{ marginTop: '48px' }}>
+          <button className="btn btn-ghost btn-small" onClick={() => navigate('/login')}>
+            Admin Login
+          </button>
         </div>
       </div>
     </div>

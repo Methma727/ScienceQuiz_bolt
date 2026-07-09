@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button, Card, CardContent, Chip, ProgressBar } from '@heroui/react';
 import { supabase, type Quiz, type Question } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
-import { Trophy, Frown, CheckCircle, XCircle } from 'lucide-react';
 import LoadingScreen from '../components/LoadingScreen';
 
 interface QuizWithQuestions extends Quiz {
@@ -55,7 +52,7 @@ export default function QuizPage() {
         .maybeSingle();
 
       if (existingEntry) {
-        navigate('/leaderboard', { replace: true });
+        navigate('/main', { replace: true });
         return;
       }
     }
@@ -124,22 +121,28 @@ export default function QuizPage() {
 
   if (!quiz) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-bg-default p-4">
-        <Card className="max-w-[420px] w-full text-center">
-          <CardContent className="p-8">
-            <Frown className="mx-auto mb-3" size={64} style={{ color: '#a0a0a0' }} />
-            <h3 className="text-xl font-semibold mb-2" style={{ color: '#eaeaea' }}>No Active Quiz</h3>
-            <p className="text-sm text-text-secondary mb-4">
-              There is no quiz available right now. Check back later!
-            </p>
-            <Button onPress={() => navigate('/leaderboard')} className="mr-2">
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        padding: '24px',
+      }}>
+        <div className="glass" style={{ maxWidth: '400px', width: '100%', padding: '32px', textAlign: 'center' }}>
+          <div style={{ fontSize: '64px', marginBottom: '16px', opacity: 0.5 }}>?</div>
+          <h2 style={{ marginBottom: '8px' }}>No Active Quiz</h2>
+          <p className="text-secondary" style={{ marginBottom: '24px' }}>
+            There is no quiz available right now. Check back later!
+          </p>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <button className="btn btn-primary" onClick={() => navigate('/main')}>
               View Leaderboard
-            </Button>
-            <Button variant="outline" onPress={() => navigate('/start')}>
+            </button>
+            <button className="btn btn-secondary" onClick={() => navigate('/start')}>
               Try Again
-            </Button>
-          </CardContent>
-        </Card>
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -147,114 +150,124 @@ export default function QuizPage() {
   if (completed) {
     const percentage = Math.round((score / totalQuestions) * 100);
     return (
-      <div className="flex justify-center items-center min-h-screen bg-bg-default p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4 }}
-        >
-          <Card className="max-w-[420px] w-full text-center">
-            <CardContent className="p-8">
-              {percentage >= 80 ? (
-                <Trophy className="mx-auto mb-3" size={64} color="#e94560" />
-              ) : percentage >= 50 ? (
-                <CheckCircle className="mx-auto mb-3" size={64} color="#00d9a5" />
-              ) : (
-                <Frown className="mx-auto mb-3" size={64} style={{ color: '#a0a0a0' }} />
-              )}
-              <h3 className="text-2xl font-semibold mb-3" style={{ color: '#eaeaea' }}>Quiz Complete!</h3>
-              <Chip variant="soft" color="accent" className="mb-3">{quiz.title}</Chip>
-              <h2 className="text-4xl font-bold mb-2" style={{ color: '#e94560' }}>
-                {score} / {totalQuestions}
-              </h2>
-              <p className="text-base text-text-secondary mb-4">
-                You scored {percentage}% correct answers
-              </p>
-              <Button fullWidth size="lg" onPress={() => navigate('/leaderboard')}>
-                View Leaderboard
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        padding: '24px',
+      }}>
+        <div className="glass animate-fade-in" style={{ maxWidth: '400px', width: '100%', padding: '32px', textAlign: 'center' }}>
+          {percentage >= 80 ? (
+            <div style={{ fontSize: '64px', marginBottom: '16px' }}>🏆</div>
+          ) : percentage >= 50 ? (
+            <div style={{ fontSize: '64px', marginBottom: '16px', color: 'var(--accent-success)' }}>✓</div>
+          ) : (
+            <div style={{ fontSize: '64px', marginBottom: '16px', opacity: 0.5 }}>😔</div>
+          )}
+          <h2 style={{ marginBottom: '8px' }}>Quiz Complete!</h2>
+          <span className="chip chip-primary mb-3">{quiz.title}</span>
+          <div style={{
+            fontSize: '3rem',
+            fontWeight: 800,
+            background: 'linear-gradient(135deg, #e94560, #ff6b6b)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            margin: '16px 0',
+          }}>
+            {score} / {totalQuestions}
+          </div>
+          <p className="text-secondary" style={{ marginBottom: '24px' }}>
+            You scored {percentage}% correct answers
+          </p>
+          <button
+            className="btn btn-primary"
+            onClick={() => navigate('/main')}
+            style={{ width: '100%' }}
+          >
+            View Leaderboard
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-bg-default">
-      <div className="p-4 text-center" style={{ backgroundColor: '#1a1a2e', color: 'white' }}>
-        <h3 className="text-lg font-semibold">{quiz.title}</h3>
-        <p className="text-sm opacity-80">Question {currentIndex + 1} of {totalQuestions}</p>
-        <ProgressBar
-          value={progress}
-          className="mt-3"
-        />
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(233, 69, 96, 0.1), rgba(255, 107, 107, 0.05))',
+        borderBottom: '1px solid var(--glass-border)',
+        padding: '16px 24px',
+      }}>
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <h3 style={{ fontWeight: 600, marginBottom: '4px' }}>{quiz.title}</h3>
+          <p className="text-secondary" style={{ fontSize: '0.875rem', marginBottom: '12px' }}>
+            Question {currentIndex + 1} of {totalQuestions}
+          </p>
+          <div className="progress">
+            <div className="progress-bar" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 flex justify-center items-center p-4">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentIndex}
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3 }}
-            className="w-full max-w-[600px]"
-          >
-            <Card>
-              <CardContent className="p-6 sm:p-8">
-                <h4 className="text-xl font-semibold mb-4 text-center" style={{ color: '#eaeaea' }}>
-                  {currentQuestion?.question_text}
-                </h4>
-                <div className="flex flex-col gap-2">
-                  {currentQuestion?.options.map((option, idx) => {
-                    const isSelected = answered === option;
-                    const isRight = option === currentQuestion.correct_answer;
-                    let btnVariant: 'outline' | 'primary' | 'danger' = 'outline';
+      {/* Question */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '24px',
+      }}>
+        <div className="glass" style={{ maxWidth: '600px', width: '100%', padding: '24px' }} key={currentIndex}>
+          <h3 style={{ marginBottom: '24px', textAlign: 'center', fontSize: '1.25rem' }}>
+            {currentQuestion?.question_text}
+          </h3>
+          <div className="options-grid">
+            {currentQuestion?.options.map((option, idx) => {
+              const isSelected = answered === option;
+              const isRight = option === currentQuestion.correct_answer;
+              let className = 'option-btn';
 
-                    if (answered) {
-                      if (isRight) {
-                        btnVariant = 'primary';
-                      } else if (isSelected && !isRight) {
-                        btnVariant = 'danger';
-                      }
-                    }
+              if (answered) {
+                if (isRight) {
+                  className += ' correct';
+                } else if (isSelected && !isRight) {
+                  className += ' incorrect';
+                }
+              }
 
-                    return (
-                      <Button
-                        key={idx}
-                        variant={btnVariant}
-                        size="lg"
-                        isDisabled={!!answered}
-                        onPress={() => handleAnswer(option)}
-                        className="justify-start py-4 px-3 text-base"
-                      >
-                        {answered && isRight && <CheckCircle size={20} className="mr-2 shrink-0" />}
-                        {answered && isSelected && !isRight && <XCircle size={20} className="mr-2 shrink-0" />}
-                        {option}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </AnimatePresence>
+              return (
+                <button
+                  key={idx}
+                  className={className}
+                  onClick={() => handleAnswer(option)}
+                  disabled={!!answered}
+                >
+                  {answered && isRight && <span style={{ color: 'var(--accent-success)' }}>✓</span>}
+                  {answered && isSelected && !isRight && <span style={{ color: 'var(--accent-primary)' }}>✗</span>}
+                  <span style={{ flex: 1 }}>{option}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      <div className="p-4 flex justify-center">
-        <Button
-          size="lg"
-          isDisabled={!answered || submitting}
-          onPress={handleNext}
-          className="min-w-[200px]"
+      {/* Footer */}
+      <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'center' }}>
+        <button
+          className="btn btn-primary"
+          disabled={!answered || submitting}
+          onClick={handleNext}
+          style={{ minWidth: '200px' }}
         >
           {submitting
             ? 'Submitting...'
             : currentIndex < totalQuestions - 1
             ? 'Next Question'
             : 'Finish Quiz'}
-        </Button>
+        </button>
       </div>
     </div>
   );

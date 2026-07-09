@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Card, CardContent, TextField, Label, FieldError } from '@heroui/react';
 import { useApp } from '../context/AppContext';
-import { NotebookText } from 'lucide-react';
 
 export default function StudentStartPage() {
   const navigate = useNavigate();
@@ -25,46 +23,73 @@ export default function StudentStartPage() {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-bg-default p-4">
-      <Card className="max-w-[420px] w-full">
-        <CardContent className="p-8">
-          <div className="text-center mb-6">
-            <NotebookText className="mx-auto mb-2" size={48} style={{ color: '#e94560' }} />
-            <h2 className="text-2xl font-semibold" style={{ color: '#eaeaea' }}>Ready to Quiz?</h2>
-            <p className="text-sm text-text-secondary">Enter your name to begin</p>
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '100vh',
+      padding: '24px',
+    }}>
+      <div className="glass" style={{ maxWidth: '400px', width: '100%', padding: '32px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            margin: '0 auto 12px',
+            background: 'linear-gradient(135deg, #00d9a5 0%, #00b387 100%)',
+            borderRadius: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '28px',
+          }}>
+            ?
           </div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '4px' }}>Ready to Quiz?</h1>
+          <p className="text-secondary">Enter your name to begin</p>
+        </div>
 
-          <div>
-            <TextField value={name} onChange={(v) => { setName(v); setError(null); }} isInvalid={!!error} className="mb-4">
-              <Label>Your Name</Label>
-              <Input
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleStart();
-                  }
-                }}
-              />
-              {error && <FieldError>{error}</FieldError>}
-            </TextField>
-            <Button
-              fullWidth
-              size="lg"
-              onPress={handleStart}
-            >
-              Start Quiz
-            </Button>
-            <Button
-              fullWidth
-              variant="ghost"
-              size="sm"
-              onPress={() => navigate('/leaderboard')}
-              className="mt-3"
-            >
-              View Leaderboard
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        <div style={{ marginBottom: '16px' }}>
+          <label className="text-secondary" style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem' }}>
+            Your Name
+          </label>
+          <input
+            type="text"
+            className="input"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleStart();
+            }}
+            placeholder="Enter your name"
+            style={{
+              borderColor: error ? '#e94560' : undefined,
+            }}
+          />
+          {error && (
+            <p style={{ color: '#e94560', fontSize: '0.75rem', marginTop: '6px' }}>{error}</p>
+          )}
+        </div>
+
+        <button
+          className="btn btn-primary"
+          onClick={handleStart}
+          style={{ width: '100%', marginBottom: '12px' }}
+        >
+          Start Quiz
+        </button>
+
+        <button
+          className="btn btn-ghost btn-small"
+          onClick={() => navigate('/main')}
+          style={{ width: '100%' }}
+        >
+          View Leaderboard
+        </button>
+      </div>
     </div>
   );
 }

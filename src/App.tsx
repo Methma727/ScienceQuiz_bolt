@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toast } from '@heroui/react';
 import { AppProvider, useApp } from './context/AppContext';
 import HomePage from './pages/HomePage';
 import MainPage from './pages/MainPage';
@@ -43,14 +42,14 @@ function AppRoutes() {
   );
 }
 
-export default function App() {
+function App() {
   return (
     <BrowserRouter>
-      <Toast.Provider>
-        <AppProvider>
-          <AppRoutes />
-        </AppProvider>
-      </Toast.Provider>
+      <AppProvider>
+        <AppRoutes />
+      </AppProvider>
     </BrowserRouter>
   );
 }
+
+export default App;
