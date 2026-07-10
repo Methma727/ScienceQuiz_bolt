@@ -10,8 +10,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  supabaseUrl || 'https://sqkzityjfxwuescwvrph.supabase.co',
+  supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxa3ppdHlqZnh3dWVzY3d2cnBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzMjYyOTIsImV4cCI6MjA5ODkwMjI5Mn0.xhYOyFrAlYDtZbhJZpb-6zkewc8fW42J1vNrc8AW67g'
 );
 
 export type Quiz = {
