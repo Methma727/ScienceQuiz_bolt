@@ -23,11 +23,21 @@ export default function QuizPage() {
   const fetchActiveQuiz = useCallback(async () => {
     const { data: quizData, error: quizError } = await supabase
       .from('quizzes')
-      .select('id, title, is_active, created_at')
+      .select('id, title, is_active, starts_at, ends_at, created_at')
       .eq('is_active', true)
       .maybeSingle();
 
     if (quizError || !quizData) {
+      setLoading(false);
+      return;
+    }
+
+    const now = new Date();
+    if (quizData.starts_at && new Date(quizData.starts_at) > now) {
+      setLoading(false);
+      return;
+    }
+    if (quizData.ends_at && new Date(quizData.ends_at) < now) {
       setLoading(false);
       return;
     }

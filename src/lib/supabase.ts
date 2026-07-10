@@ -18,6 +18,8 @@ export type Quiz = {
   id: string;
   title: string;
   is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
   created_at: string;
 };
 

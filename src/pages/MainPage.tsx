@@ -51,7 +51,13 @@ export default function MainPage() {
       .order('created_at', { ascending: false });
     setAllQuizzes(quizzesData || []);
 
-    const active = quizzesData?.filter((q) => q.is_active) || [];
+    const now = new Date();
+    const active = quizzesData?.filter((q) => {
+      if (!q.is_active) return false;
+      if (q.starts_at && new Date(q.starts_at) > now) return false;
+      if (q.ends_at && new Date(q.ends_at) < now) return false;
+      return true;
+    }) || [];
     setActiveQuizzes(active);
 
     setLoading(false);

@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { supabase, type Quiz, type Question } from '../lib/supabase';
+import { fetchQuestionsFromSheet, type ParsedQuestion } from '../lib/googleSheets';
 import { useApp } from '../context/AppContext';
 import LoadingScreen from '../components/LoadingScreen';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { isAdmin, signOut, loading: authLoading } = useApp();
-  const [tabValue, setTabValue] = useState(0);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuizId, setSelectedQuizId] = useState<string>('');
@@ -17,6 +17,8 @@ export default function AdminDashboard() {
   // Dialog states
   const [quizDialogOpen, setQuizDialogOpen] = useState(false);
   const [quizDialogTitle, setQuizDialogTitle] = useState('');
+  const [quizStartsAt, setQuizStartsAt] = useState('');
+  const [quizEndsAt, setQuizEndsAt] = useState('');
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
 
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
@@ -31,6 +33,15 @@ export default function AdminDashboard() {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [confirmDialogAction, setConfirmDialogAction] = useState<(() => void) | null>(null);
   const [confirmDialogMessage, setConfirmDialogMessage] = useState('');
+
+  // Import from Google Sheets
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importPreview, setImportPreview] = useState<ParsedQuestion[]>([]);
+  const [importSheetRange, setImportSheetRange] = useState('Sheet1!A:F');
+  const [importSpreadsheetId, setImportSpreadsheetId] = useState('');
+  const [importError, setImportError] = useState('');
+  const [importStep, setImportStep] = useState<'config' | 'preview'>('config');
 
   useEffect(() => {
     fetchQuizzes();
@@ -99,9 +110,13 @@ export default function AdminDashboard() {
     if (quiz) {
       setEditingQuiz(quiz);
       setQuizDialogTitle(quiz.title);
+      setQuizStartsAt(quiz.starts_at ? quiz.starts_at.slice(0, 16) : '');
+      setQuizEndsAt(quiz.ends_at ? quiz.ends_at.slice(0, 16) : '');
     } else {
       setEditingQuiz(null);
       setQuizDialogTitle('');
+      setQuizStartsAt('');
+      setQuizEndsAt('');
     }
     setQuizDialogOpen(true);
   };
@@ -112,10 +127,15 @@ export default function AdminDashboard() {
       return;
     }
 
+    const scheduleData = {
+      starts_at: quizStartsAt ? new Date(quizStartsAt).toISOString() : null,
+      ends_at: quizEndsAt ? new Date(quizEndsAt).toISOString() : null,
+    };
+
     if (editingQuiz) {
       const { error } = await supabase
         .from('quizzes')
-        .update({ title: quizDialogTitle.trim() })
+        .update({ title: quizDialogTitle.trim(), ...scheduleData })
         .eq('id', editingQuiz.id);
       if (error) {
         showToast('Failed to update quiz', 'error');
@@ -128,6 +148,7 @@ export default function AdminDashboard() {
       const { error } = await supabase.from('quizzes').insert({
         title: quizDialogTitle.trim(),
         is_active: false,
+        ...scheduleData,
       });
       if (error) {
         showToast('Failed to create quiz', 'error');
@@ -246,9 +267,83 @@ export default function AdminDashboard() {
     setConfirmDialogOpen(true);
   };
 
+  const handleOpenImportDialog = () => {
+    setImportPreview([]);
+    setImportError('');
+    setImportStep('config');
+    setImportSheetRange('Sheet1!A:F');
+    setImportSpreadsheetId('');
+    setImportDialogOpen(true);
+  };
+
+  const handleFetchFromSheet = async () => {
+    if (!selectedQuizId) {
+      showToast('Please select a quiz first', 'error');
+      return;
+    }
+    setImportLoading(true);
+    setImportError('');
+    try {
+      const id = importSpreadsheetId.trim() || undefined;
+      const questions = await fetchQuestionsFromSheet(importSheetRange.trim(), id);
+      setImportPreview(questions);
+      setImportStep('preview');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch from Google Sheet';
+      setImportError(message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleImportFromSheet = async () => {
+    if (!selectedQuizId || importPreview.length === 0) return;
+
+    setImportLoading(true);
+    try {
+      const rows = importPreview.map((q) => ({
+        quiz_id: selectedQuizId,
+        question_text: q.question_text,
+        options: q.options,
+        correct_answer: q.correct_answer,
+      }));
+
+      const { error } = await supabase.from('questions').insert(rows);
+      if (error) {
+        showToast('Failed to import questions', 'error');
+      } else {
+        showToast(`Imported ${rows.length} questions`);
+        setImportDialogOpen(false);
+        fetchQuestions(selectedQuizId);
+      }
+    } catch {
+      showToast('Failed to import questions', 'error');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/', { replace: true });
+  };
+
+  const getScheduleStatus = (quiz: Quiz) => {
+    const now = new Date();
+    if (quiz.starts_at && new Date(quiz.starts_at) > now) return 'scheduled';
+    if (quiz.ends_at && new Date(quiz.ends_at) < now) return 'expired';
+    if (quiz.starts_at || quiz.ends_at) return 'in-progress';
+    return null;
+  };
+
+  const formatScheduleDate = (iso: string | null) => {
+    if (!iso) return '';
+    return new Date(iso).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   if (authLoading) return <LoadingScreen />;
@@ -268,153 +363,129 @@ export default function AdminDashboard() {
       </nav>
 
       <div className="container container-lg" style={{ paddingTop: '24px' }}>
-        {/* Tabs */}
-        <div className="tabs mb-3" style={{ marginBottom: '24px' }}>
-          <button
-            className={`tab ${tabValue === 0 ? 'active' : ''}`}
-            onClick={() => setTabValue(0)}
-          >
-            Quizzes
-          </button>
-          <button
-            className={`tab ${tabValue === 1 ? 'active' : ''}`}
-            onClick={() => setTabValue(1)}
-          >
-            Questions
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Your Quizzes</h2>
+          <button className="btn btn-primary" onClick={() => handleOpenQuizDialog()}>
+            + Add Quiz
           </button>
         </div>
 
-        {/* Quizzes Tab */}
-        {tabValue === 0 && (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-              <button className="btn btn-primary" onClick={() => handleOpenQuizDialog()}>
-                + Add Quiz
-              </button>
-            </div>
-            {quizzes.length === 0 ? (
-              <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
-                <p className="text-secondary">No quizzes yet. Create one to get started.</p>
-              </div>
-            ) : (
-              <div className="table-container glass">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Quiz Title</th>
-                      <th style={{ textAlign: 'center' }}>Active</th>
-                      <th style={{ textAlign: 'right' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {quizzes.map((quiz) => (
-                      <tr key={quiz.id}>
-                        <td style={{ fontWeight: 500 }}>{quiz.title}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <button
-                            className={`switch ${quiz.is_active ? 'active' : ''}`}
-                            onClick={() => handleToggleActive(quiz)}
-                            title={quiz.is_active ? 'Click to deactivate' : 'Click to activate'}
-                          />
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button
-                            className="btn btn-ghost btn-small"
-                            onClick={() => handleOpenQuizDialog(quiz)}
-                            style={{ marginRight: '8px' }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="btn btn-ghost btn-small"
-                            onClick={() => handleDeleteQuiz(quiz)}
-                            style={{ color: 'var(--accent-primary)' }}
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
-        )}
+        {quizzes.length === 0 ? (
+          <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
+            <p className="text-secondary">No quizzes yet. Create one to get started.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: '16px' }}>
+            {quizzes.map((quiz) => {
+              const schedStatus = getScheduleStatus(quiz);
+              const isExpanded = selectedQuizId === quiz.id;
+              return (
+                <div key={quiz.id} className="glass" style={{ overflow: 'hidden' }}>
+                  {/* Quiz Row */}
+                  <div
+                    onClick={() => setSelectedQuizId(isExpanded ? '' : quiz.id)}
+                    style={{
+                      padding: '16px 20px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '16px',
+                      borderBottom: isExpanded ? '1px solid var(--glass-border)' : 'none',
+                    }}
+                  >
+                    <span style={{ fontSize: '1.2rem', opacity: 0.4, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none' }}>▶</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, marginBottom: '2px' }}>{quiz.title}</div>
+                      <div style={{ fontSize: '0.8125rem', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {quiz.is_active ? (
+                          <span className="chip chip-success" style={{ fontSize: '0.75rem' }}>Active</span>
+                        ) : (
+                          <span className="chip" style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)' }}>Inactive</span>
+                        )}
+                        {schedStatus === 'scheduled' && (
+                          <span className="chip chip-default" style={{ fontSize: '0.75rem' }}>Scheduled</span>
+                        )}
+                        {schedStatus === 'expired' && (
+                          <span className="chip" style={{ fontSize: '0.75rem', background: 'rgba(233,69,96,0.15)', color: 'var(--accent-primary)' }}>Expired</span>
+                        )}
+                        {quiz.starts_at && (
+                          <span className="text-muted" style={{ fontSize: '0.75rem' }}>From {formatScheduleDate(quiz.starts_at)}</span>
+                        )}
+                        {quiz.ends_at && (
+                          <span className="text-muted" style={{ fontSize: '0.75rem' }}>Until {formatScheduleDate(quiz.ends_at)}</span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      className={`switch ${quiz.is_active ? 'active' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); handleToggleActive(quiz); }}
+                      title={quiz.is_active ? 'Deactivate' : 'Activate'}
+                    />
+                    <button
+                      className="btn btn-ghost btn-small"
+                      onClick={(e) => { e.stopPropagation(); handleOpenQuizDialog(quiz); }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-small"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteQuiz(quiz); }}
+                      style={{ color: 'var(--accent-primary)' }}
+                    >
+                      Delete
+                    </button>
+                  </div>
 
-        {/* Questions Tab */}
-        {tabValue === 1 && (
-          <>
-            <div className="glass" style={{ padding: '16px', marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-              <select
-                className="select"
-                value={selectedQuizId}
-                onChange={(e) => setSelectedQuizId(e.target.value)}
-                style={{ flex: 1 }}
-              >
-                {quizzes.map((quiz) => (
-                  <option key={quiz.id} value={quiz.id}>
-                    {quiz.title} {quiz.is_active ? '(Active)' : ''}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="btn btn-primary"
-                onClick={() => handleOpenQuestionDialog()}
-                disabled={!selectedQuizId}
-              >
-                + Add Question
-              </button>
-            </div>
-
-            {!selectedQuizId ? (
-              <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
-                <p className="text-secondary">Select a quiz to manage questions.</p>
-              </div>
-            ) : questions.length === 0 ? (
-              <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
-                <p className="text-secondary">No questions for this quiz. Add some to get started.</p>
-              </div>
-            ) : (
-              <div className="table-container glass">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Question</th>
-                      <th style={{ textAlign: 'center' }}>Correct Answer</th>
-                      <th style={{ textAlign: 'right' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {questions.map((question) => (
-                      <tr key={question.id}>
-                        <td>{question.question_text}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span className="chip chip-success">{question.correct_answer}</span>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button
-                            className="btn btn-ghost btn-small"
-                            onClick={() => handleOpenQuestionDialog(question)}
-                            style={{ marginRight: '8px' }}
-                          >
-                            Edit
+                  {/* Expanded: Questions */}
+                  {isExpanded && (
+                    <div style={{ padding: '16px 20px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <span className="text-secondary" style={{ fontSize: '0.875rem' }}>
+                          {questions.length} question{questions.length !== 1 ? 's' : ''}
+                        </span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn btn-ghost btn-small" onClick={() => handleOpenQuestionDialog()}>
+                            + Add
                           </button>
-                          <button
-                            className="btn btn-ghost btn-small"
-                            onClick={() => handleDeleteQuestion(question)}
-                            style={{ color: 'var(--accent-primary)' }}
-                          >
-                            Delete
+                          <button className="btn btn-ghost btn-small" onClick={handleOpenImportDialog}>
+                            Import from Sheet
                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
+                        </div>
+                      </div>
+                      {questions.length === 0 ? (
+                        <p className="text-muted" style={{ fontSize: '0.875rem', textAlign: 'center', padding: '16px 0' }}>
+                          No questions yet. Add some or import from Google Sheet.
+                        </p>
+                      ) : (
+                        <div style={{ display: 'grid', gap: '8px' }}>
+                          {questions.map((q) => (
+                            <div
+                              key={q.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                padding: '10px 14px',
+                                background: 'rgba(255,255,255,0.02)',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(255,255,255,0.04)',
+                              }}
+                            >
+                              <div style={{ flex: 1, fontSize: '0.875rem' }}>{q.question_text}</div>
+                              <span className="chip chip-success" style={{ fontSize: '0.75rem' }}>{q.correct_answer}</span>
+                              <button className="btn btn-ghost btn-small" onClick={() => handleOpenQuestionDialog(q)}>Edit</button>
+                              <button className="btn btn-ghost btn-small" onClick={() => handleDeleteQuestion(q)} style={{ color: 'var(--accent-primary)' }}>Del</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -436,7 +507,39 @@ export default function AdminDashboard() {
                 onChange={(e) => setQuizDialogTitle(e.target.value)}
                 placeholder="Enter quiz title"
                 autoFocus
+                style={{ marginBottom: '16px' }}
               />
+
+              <p className="text-secondary" style={{ fontSize: '0.875rem', marginBottom: '8px' }}>Schedule (optional)</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '4px', fontSize: '0.75rem' }}>
+                    Goes Live
+                  </label>
+                  <input
+                    type="datetime-local"
+                    className="input"
+                    value={quizStartsAt}
+                    onChange={(e) => setQuizStartsAt(e.target.value)}
+                    style={{ fontSize: '0.875rem' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-muted" style={{ display: 'block', marginBottom: '4px', fontSize: '0.75rem' }}>
+                    Ends
+                  </label>
+                  <input
+                    type="datetime-local"
+                    className="input"
+                    value={quizEndsAt}
+                    onChange={(e) => setQuizEndsAt(e.target.value)}
+                    style={{ fontSize: '0.875rem' }}
+                  />
+                </div>
+              </div>
+              <p className="text-muted" style={{ fontSize: '0.75rem', marginBottom: '16px' }}>
+                Leave empty for no time restrictions. Students can only see the quiz between these dates.
+              </p>
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setQuizDialogOpen(false)}>
@@ -498,6 +601,114 @@ export default function AdminDashboard() {
               <button className="btn btn-primary" onClick={handleSaveQuestion}>
                 {editingQuestion ? 'Update' : 'Create'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import from Google Sheet Dialog */}
+      {importDialogOpen && (
+        <div className="modal-overlay" onClick={() => !importLoading && setImportDialogOpen(false)}>
+          <div className="modal" style={{ maxWidth: '640px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Import from Google Sheet</h3>
+            </div>
+
+            {importStep === 'config' && (
+              <div>
+                <p className="text-secondary" style={{ fontSize: '0.875rem', marginBottom: '12px' }}>
+                  Your sheet should have these columns: Question, Option1, Option2, Option3, Option4, CorrectAnswer
+                </p>
+                <label className="text-secondary" style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem' }}>
+                  Spreadsheet ID
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  value={importSpreadsheetId}
+                  onChange={(e) => setImportSpreadsheetId(e.target.value)}
+                  placeholder="Leave empty to use default from .env"
+                  style={{ marginBottom: '12px' }}
+                />
+                <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '-8px', marginBottom: '12px' }}>
+                  Find it in the sheet URL: docs.google.com/spreadsheets/d/<strong>THIS_PART</strong>/edit
+                </p>
+                <label className="text-secondary" style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem' }}>
+                  Sheet Range
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  value={importSheetRange}
+                  onChange={(e) => setImportSheetRange(e.target.value)}
+                  placeholder="Sheet1!A:F"
+                />
+                {importError && (
+                  <p style={{ color: 'var(--accent-primary)', fontSize: '0.875rem', marginTop: '8px' }}>
+                    {importError}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {importStep === 'preview' && (
+              <div>
+                <p className="text-secondary" style={{ fontSize: '0.875rem', marginBottom: '12px' }}>
+                  Preview — {importPreview.length} question{importPreview.length !== 1 ? 's' : ''} found:
+                </p>
+                <div style={{ maxHeight: '320px', overflowY: 'auto', marginBottom: '8px' }}>
+                  <table className="table" style={{ fontSize: '0.8125rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Question</th>
+                        <th>Options</th>
+                        <th>Correct</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreview.map((q, i) => (
+                        <tr key={i}>
+                          <td>{q.question_text}</td>
+                          <td>{q.options.join(' | ')}</td>
+                          <td style={{ color: 'var(--accent-success)' }}>{q.correct_answer}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {importError && (
+                  <p style={{ color: 'var(--accent-primary)', fontSize: '0.875rem', marginBottom: '8px' }}>
+                    {importError}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  if (importStep === 'preview') {
+                    setImportStep('config');
+                    setImportPreview([]);
+                    setImportError('');
+                  } else {
+                    setImportDialogOpen(false);
+                  }
+                }}
+                disabled={importLoading}
+              >
+                {importStep === 'preview' ? 'Back' : 'Cancel'}
+              </button>
+              {importStep === 'config' ? (
+                <button className="btn btn-primary" onClick={handleFetchFromSheet} disabled={importLoading}>
+                  {importLoading ? 'Fetching...' : 'Fetch'}
+                </button>
+              ) : (
+                <button className="btn btn-primary" onClick={handleImportFromSheet} disabled={importLoading || importPreview.length === 0}>
+                  {importLoading ? 'Importing...' : 'Import All'}
+                </button>
+              )}
             </div>
           </div>
         </div>
