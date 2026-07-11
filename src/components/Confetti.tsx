@@ -14,8 +14,8 @@ export default function Confetti({ duration = 2600, onDone }: { duration?: numbe
     if (!ctx) return;
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const W = (canvas.width = window.innerWidth * dpr);
-    const H = (canvas.height = window.innerHeight * dpr);
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
     canvas.style.width = `${window.innerWidth}px`;
     canvas.style.height = `${window.innerHeight}px`;
     ctx.scale(dpr, dpr);

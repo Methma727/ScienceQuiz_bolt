@@ -36,7 +36,7 @@ export default function SettingsPanel({ open, onClose }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  const toggle = (key: keyof typeof s, value: boolean, set: (v: boolean) => void) => {
+  const toggle = (_key: keyof typeof s, value: boolean, set: (v: boolean) => void) => {
     set(!value);
     sound.play('toggle');
   };
