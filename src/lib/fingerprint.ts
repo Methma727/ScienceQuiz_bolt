@@ -9,11 +9,11 @@ function parseUserAgent(ua: string): { browser: string; os: string } {
   else if (ua.includes('Opera') || ua.includes('OPR/')) browser = 'Opera';
 
   let os = 'Unknown';
-  if (ua.includes('Windows')) os = 'Windows';
+  if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+  else if (ua.includes('Windows')) os = 'Windows';
   else if (ua.includes('Mac OS')) os = 'macOS';
   else if (ua.includes('Linux')) os = 'Linux';
-  else if (ua.includes('Android')) os = 'Android';
-  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
 
   return { browser, os };
 }
@@ -28,14 +28,18 @@ export async function collectBrowserInfo(): Promise<BrowserInfo> {
   const ua = navigator.userAgent;
   const { browser, os } = parseUserAgent(ua);
 
+  const dpr = window.devicePixelRatio || 1;
+  const physicalW = Math.round(window.screen.width * dpr);
+  const physicalH = Math.round(window.screen.height * dpr);
+
   return {
     userAgent: ua,
     browser,
     os,
     device: detectDevice(ua),
-    screen: `${window.screen.width}x${window.screen.height}`,
+    screen: `${physicalW}x${physicalH} (${window.screen.width}x${window.screen.height} CSS, ${dpr}x DPR)`,
     language: navigator.language || 'en',
-    platform: navigator.platform || 'unknown',
+    platform: os === 'Android' || os === 'iOS' ? os : (navigator.platform || 'unknown'),
   };
 }
 
