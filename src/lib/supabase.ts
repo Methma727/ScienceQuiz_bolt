@@ -32,11 +32,33 @@ export type Question = {
   created_at: string;
 };
 
+export type BrowserInfo = {
+  userAgent: string;
+  browser: string;
+  os: string;
+  device: string;
+  screen: string;
+  language: string;
+  platform: string;
+};
+
+export type LocationInfo = {
+  ip: string;
+  country: string;
+  region: string;
+  city: string;
+  timezone: string;
+  isp: string;
+};
+
 export type LeaderboardEntry = {
   id: string;
   student_name: string;
   score: number;
   quiz_id: string;
   created_at: string;
+  ip_address: string | null;
+  browser_info: BrowserInfo | null;
+  location: LocationInfo | null;
   quizzes?: { title: string };
 };

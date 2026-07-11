@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, type Quiz } from '../lib/supabase';
+import { supabase, type Quiz, type BrowserInfo, type LocationInfo } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
+import { sound } from '../lib/sound';
 import LoadingScreen from '../components/LoadingScreen';
+import Logo from '../components/Logo';
 
 interface LeaderboardRow {
   id: string;
@@ -10,6 +12,9 @@ interface LeaderboardRow {
   score: number;
   quiz_id: string;
   created_at: string;
+  ip_address: string | null;
+  browser_info: BrowserInfo | null;
+  location: LocationInfo | null;
   quizzes: { title: string } | { title: string }[] | null;
 }
 
@@ -22,6 +27,7 @@ export default function MainPage() {
   const [loading, setLoading] = useState(true);
   const [selectedQuizId, setSelectedQuizId] = useState<string>('');
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
+  const [selectedParticipant, setSelectedParticipant] = useState<LeaderboardRow | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -66,7 +72,7 @@ export default function MainPage() {
   const fetchLeaderboard = async (quizId: string) => {
     let query = supabase
       .from('leaderboard')
-      .select('id, student_name, score, quiz_id, created_at, quizzes(title)')
+      .select('id, student_name, score, quiz_id, created_at, ip_address, browser_info, location, quizzes(title)')
       .order('score', { ascending: false });
 
     if (quizId !== 'all') {
@@ -74,15 +80,11 @@ export default function MainPage() {
     }
 
     const { data } = await query;
-    setLeaderboard(data as LeaderboardRow[] || []);
+    setLeaderboard((data as LeaderboardRow[]) || []);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-    });
-  };
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
   const getRankClass = (rank: number) => {
     if (rank === 1) return 'rank-1';
@@ -105,29 +107,31 @@ export default function MainPage() {
       {/* Navbar */}
       <nav className="navbar">
         <div className="navbar-content">
-          <span className="navbar-title">QuizMaster</span>
-          {isAdmin ? (
-            <button className="btn btn-ghost btn-small" onClick={handleSignOut}>
-              Sign Out
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Logo size={34} />
+            <span className="navbar-title">QuizMaster</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button className="btn btn-ghost btn-small" onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <HomeIcon /> Home
             </button>
-          ) : null}
+            {isAdmin && (
+              <button className="btn btn-ghost btn-small" onClick={handleSignOut}>
+                Sign Out
+              </button>
+            )}
+          </div>
         </div>
       </nav>
 
       <div className="container">
         {/* Tabs */}
-        <div className="tabs mb-3" style={{ marginBottom: '24px' }}>
-          <button
-            className={`tab ${tabValue === 0 ? 'active' : ''}`}
-            onClick={() => setTabValue(0)}
-          >
-            Quizzes
+        <div className="tabs" style={{ marginBottom: '24px' }}>
+          <button className={`tab ${tabValue === 0 ? 'active' : ''}`} onClick={() => setTabValue(0)}>
+            <BookIcon /> Quizzes
           </button>
-          <button
-            className={`tab ${tabValue === 1 ? 'active' : ''}`}
-            onClick={() => setTabValue(1)}
-          >
-            Leaderboard
+          <button className={`tab ${tabValue === 1 ? 'active' : ''}`} onClick={() => setTabValue(1)}>
+            <TrophyIcon /> Leaderboard
           </button>
         </div>
 
@@ -135,48 +139,36 @@ export default function MainPage() {
         {tabValue === 0 && (
           <>
             {activeQuizzes.length === 0 ? (
-              <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>?</div>
-                <p className="text-secondary">No active quizzes available</p>
+              <div className="glass animate-fade-in" style={{ padding: '56px 32px', textAlign: 'center' }}>
+                <div className="animate-float" style={{ fontSize: '52px', marginBottom: '16px', opacity: 0.5 }}>🛰️</div>
+                <p className="text-secondary" style={{ fontSize: '1.05rem' }}>No active quizzes available</p>
                 <p className="text-muted" style={{ fontSize: '0.875rem', marginTop: '8px' }}>
                   Check back later for new challenges
                 </p>
               </div>
             ) : (
               <div style={{ display: 'grid', gap: '16px' }}>
-                {activeQuizzes.map((quiz) => (
+                {activeQuizzes.map((quiz, i) => (
                   <div
                     key={quiz.id}
-                    className="glass"
-                    style={{
-                      padding: '24px',
-                      transition: 'transform 0.2s, box-shadow 0.2s',
-                    }}
+                    className="glass glass-interactive animate-fade-in"
+                    style={{ padding: '24px', animationDelay: `${i * 0.06}s` }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                      <div style={{
-                        width: '48px',
-                        height: '48px',
-                        background: 'linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)',
-                        borderRadius: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '24px',
-                      }}>
-                        Q
+                      <div style={{ width: '50px', height: '50px', background: 'var(--accent-gradient)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 20px var(--accent-soft)' }}>
+                        <BookIcon size={24} />
                       </div>
                       <div style={{ flex: 1 }}>
-                        <h4 style={{ fontWeight: 600, marginBottom: '4px' }}>{quiz.title}</h4>
-                        <span className="chip chip-success">Active</span>
+                        <h4 className="font-display" style={{ fontWeight: 700, marginBottom: '4px', fontSize: '1.1rem' }}>{quiz.title}</h4>
+                        <span className="chip chip-success"><span className="pulse-dot" /> Active</span>
                       </div>
                     </div>
                     <button
                       className="btn btn-primary"
-                      onClick={() => navigate('/start')}
+                      onClick={() => { sound.play('whoosh'); navigate('/start'); }}
                       style={{ width: '100%' }}
                     >
-                      Start Quiz
+                      Start Quiz <ArrowIcon />
                     </button>
                   </div>
                 ))}
@@ -188,8 +180,7 @@ export default function MainPage() {
         {/* Leaderboard Tab */}
         {tabValue === 1 && (
           <>
-            {/* Filter */}
-            <div className="glass mb-3" style={{ padding: '16px', marginBottom: '24px' }}>
+            <div className="glass animate-fade-in" style={{ padding: '16px', marginBottom: '24px' }}>
               <select
                 className="select"
                 value={selectedQuizId}
@@ -205,18 +196,16 @@ export default function MainPage() {
             </div>
 
             {leaderboard.length === 0 ? (
-              <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏆</div>
-                <p className="text-secondary">No scores yet</p>
+              <div className="glass animate-fade-in" style={{ padding: '56px 32px', textAlign: 'center' }}>
+                <div className="animate-float" style={{ fontSize: '52px', marginBottom: '16px' }}>🏆</div>
+                <p className="text-secondary" style={{ fontSize: '1.05rem' }}>No scores yet</p>
                 <p className="text-muted" style={{ fontSize: '0.875rem', marginTop: '8px', marginBottom: '24px' }}>
                   Be the first to complete the quiz!
                 </p>
-                <button className="btn btn-primary" onClick={() => navigate('/start')}>
-                  Take Quiz
-                </button>
+                <button className="btn btn-primary" onClick={() => navigate('/start')}>Take Quiz</button>
               </div>
             ) : (
-              <div className="table-container glass">
+              <div className="table-container glass animate-fade-in">
                 <table className="table">
                   <thead>
                     <tr>
@@ -231,17 +220,26 @@ export default function MainPage() {
                     {leaderboard.map((entry, index) => {
                       const rank = index + 1;
                       return (
-                        <tr key={entry.id} className="animate-fade-in" style={{ animationDelay: `${index * 0.05}s` }}>
+                        <tr
+                          key={entry.id}
+                          className={`animate-fade-in ${isAdmin ? 'leaderboard-row' : ''}`}
+                          style={{ animationDelay: `${index * 0.04}s` }}
+                          onClick={() => isAdmin && setSelectedParticipant(entry)}
+                          role={isAdmin ? 'button' : undefined}
+                        >
                           <td style={{ textAlign: 'center' }}>
-                            <span className={`rank-badge ${getRankClass(rank)}`}>
-                              {rank}
-                            </span>
+                            <span className={`rank-badge ${getRankClass(rank)}`}>{rank}</span>
                           </td>
-                          <td style={{ fontWeight: 500 }}>{entry.student_name}</td>
+                          <td style={{ fontWeight: 600 }}>
+                            {entry.student_name}
+                            {isAdmin && entry.location && (
+                              <span className="text-muted" style={{ fontSize: '0.75rem', marginLeft: '6px' }}>
+                                {entry.location.city}{entry.location.country ? `, ${entry.location.country}` : ''}
+                              </span>
+                            )}
+                          </td>
                           <td style={{ textAlign: 'center' }}>
-                            <span className={`chip ${rank <= 3 ? 'chip-primary' : 'chip-default'}`}>
-                              {entry.score}
-                            </span>
+                            <span className={`chip ${rank <= 3 ? 'chip-primary' : 'chip-default'}`}>{entry.score}</span>
                           </td>
                           {selectedQuizId === 'all' && (
                             <td className="text-secondary">
@@ -260,10 +258,118 @@ export default function MainPage() {
         )}
       </div>
 
-      {/* Floating Home Button */}
-      <button className="fab" onClick={() => navigate('/')} title="Home">
-        ⌂
-      </button>
+      {/* Participant Detail Modal (admin only) */}
+      {isAdmin && selectedParticipant && (
+        <div className="modal-overlay" onClick={() => setSelectedParticipant(null)}>
+          <div className="modal" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Participant Details</h3>
+            </div>
+            <div style={{ display: 'grid', gap: '16px' }}>
+              {/* Identity */}
+              <div className="participant-section">
+                <div className="participant-section-title">Identity</div>
+                <div className="participant-field">
+                  <span className="participant-label">Name</span>
+                  <span className="participant-value">{selectedParticipant.student_name}</span>
+                </div>
+                <div className="participant-field">
+                  <span className="participant-label">Score</span>
+                  <span className="participant-value">{selectedParticipant.score}</span>
+                </div>
+                <div className="participant-field">
+                  <span className="participant-label">Submitted</span>
+                  <span className="participant-value">
+                    {new Date(selectedParticipant.created_at).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Location */}
+              {selectedParticipant.location && (
+                <div className="participant-section">
+                  <div className="participant-section-title">Location</div>
+                  <div className="participant-field">
+                    <span className="participant-label">IP Address</span>
+                    <span className="participant-value font-mono">{selectedParticipant.location.ip}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">City</span>
+                    <span className="participant-value">{selectedParticipant.location.city}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Region</span>
+                    <span className="participant-value">{selectedParticipant.location.region}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Country</span>
+                    <span className="participant-value">{selectedParticipant.location.country}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Timezone</span>
+                    <span className="participant-value">{selectedParticipant.location.timezone}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">ISP</span>
+                    <span className="participant-value">{selectedParticipant.location.isp}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Browser Info */}
+              {selectedParticipant.browser_info && (
+                <div className="participant-section">
+                  <div className="participant-section-title">Device & Browser</div>
+                  <div className="participant-field">
+                    <span className="participant-label">Browser</span>
+                    <span className="participant-value">{selectedParticipant.browser_info.browser}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">OS</span>
+                    <span className="participant-value">{selectedParticipant.browser_info.os}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Device</span>
+                    <span className="participant-value">{selectedParticipant.browser_info.device}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Screen</span>
+                    <span className="participant-value">{selectedParticipant.browser_info.screen}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Language</span>
+                    <span className="participant-value">{selectedParticipant.browser_info.language}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Platform</span>
+                    <span className="participant-value font-mono" style={{ fontSize: '0.8rem' }}>
+                      {selectedParticipant.browser_info.platform}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setSelectedParticipant(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function BookIcon({ size = 18 }: { size?: number }) {
+  return (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" /></svg>);
+}
+function TrophyIcon() {
+  return (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z" /></svg>);
+}
+function ArrowIcon() {
+  return (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>);
+}
+function HomeIcon() {
+  return (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>);
 }

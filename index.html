@@ -4,11 +4,65 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="initial-scale=1, width=device-width" />
+    <meta name="theme-color" content="#06060a" />
+    <meta name="description" content="QuizMaster — Challenge yourself. Climb the ranks." />
     <title>QuizMaster</title>
+    <style>
+      /* Splash shown immediately, before the JS bundle parses. */
+      #splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #06060a;
+        z-index: 9999;
+        transition: opacity 400ms ease;
+      }
+      #splash.hide { opacity: 0; pointer-events: none; }
+      .splash-logo {
+        width: 64px; height: 64px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #e94560, #ff7eb3);
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 32px; font-weight: 800;
+        font-family: system-ui, sans-serif;
+        box-shadow: 0 8px 28px rgba(233,69,96,0.35);
+        animation: splashPulse 1.4s ease-in-out infinite;
+      }
+      .splash-spin {
+        width: 4px; height: 4px;
+        border: 3px solid rgba(255,255,255,0.1);
+        border-top-color: #e94560;
+        border-radius: 50%;
+        animation: splashSpin 0.8s linear infinite;
+        width: 34px; height: 34px;
+      }
+      @keyframes splashSpin { to { transform: rotate(360deg); } }
+      @keyframes splashPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <div id="diag" style="display:none">JS not executed</div>
+    <div id="splash">
+      <div class="splash-logo">Q</div>
+      <div class="splash-spin"></div>
+    </div>
+    <script>
+      // Hide the splash once the app mounts.
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          var s = document.getElementById('splash');
+          if (s) {
+            s.classList.add('hide');
+            setTimeout(function () { s.remove(); }, 500);
+          }
+        }, 150);
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

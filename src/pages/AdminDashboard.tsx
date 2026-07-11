@@ -1,15 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { supabase, type Quiz, type Question } from '../lib/supabase';
+import { supabase, type Quiz, type Question, type BrowserInfo, type LocationInfo } from '../lib/supabase';
 import { fetchQuestionsFromSheet, type ParsedQuestion } from '../lib/googleSheets';
 import { useApp } from '../context/AppContext';
+import { sound } from '../lib/sound';
 import LoadingScreen from '../components/LoadingScreen';
+import Logo from '../components/Logo';
+
+interface ParticipantEntry {
+  id: string;
+  student_name: string;
+  score: number;
+  created_at: string;
+  ip_address: string | null;
+  browser_info: BrowserInfo | null;
+  location: LocationInfo | null;
+}
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { isAdmin, signOut, loading: authLoading } = useApp();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [participants, setParticipants] = useState<ParticipantEntry[]>([]);
   const [selectedQuizId, setSelectedQuizId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -34,6 +47,9 @@ export default function AdminDashboard() {
   const [confirmDialogAction, setConfirmDialogAction] = useState<(() => void) | null>(null);
   const [confirmDialogMessage, setConfirmDialogMessage] = useState('');
 
+  // Participant detail modal
+  const [selectedParticipant, setSelectedParticipant] = useState<ParticipantEntry | null>(null);
+
   // Import from Google Sheets
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
@@ -50,6 +66,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (selectedQuizId) {
       fetchQuestions(selectedQuizId);
+      fetchParticipants(selectedQuizId);
     }
   }, [selectedQuizId]);
 
@@ -74,8 +91,18 @@ export default function AdminDashboard() {
     setQuestions(data || []);
   };
 
+  const fetchParticipants = async (quizId: string) => {
+    const { data } = await supabase
+      .from('leaderboard')
+      .select('id, student_name, score, created_at, ip_address, browser_info, location')
+      .eq('quiz_id', quizId)
+      .order('score', { ascending: false });
+    setParticipants((data as ParticipantEntry[]) || []);
+  };
+
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
+    sound.play(type === 'error' ? 'error' : 'success');
     setTimeout(() => setToast(null), 4000);
   };
 
@@ -355,25 +382,38 @@ export default function AdminDashboard() {
       {/* Navbar */}
       <nav className="navbar">
         <div className="navbar-content">
-          <span className="navbar-title">Admin Dashboard</span>
-          <button className="btn btn-ghost btn-small" onClick={handleSignOut}>
-            Sign Out
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Logo size={34} />
+            <span className="navbar-title">Admin Dashboard</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button className="btn btn-ghost btn-small" onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <HomeIcon /> Home
+            </button>
+            <button className="btn btn-ghost btn-small" onClick={handleSignOut}>
+              Sign Out
+            </button>
+          </div>
         </div>
       </nav>
 
       <div className="container container-lg" style={{ paddingTop: '24px' }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Your Quizzes</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h2 className="font-display" style={{ fontSize: '1.4rem', fontWeight: 700 }}>Your Quizzes</h2>
+            <p className="text-muted" style={{ fontSize: '0.85rem' }}>{quizzes.length} total · {quizzes.filter((q) => q.is_active).length} active</p>
+          </div>
           <button className="btn btn-primary" onClick={() => handleOpenQuizDialog()}>
             + Add Quiz
           </button>
         </div>
 
         {quizzes.length === 0 ? (
-          <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
-            <p className="text-secondary">No quizzes yet. Create one to get started.</p>
+          <div className="glass animate-fade-in" style={{ padding: '56px 32px', textAlign: 'center' }}>
+            <div className="animate-float" style={{ fontSize: '48px', marginBottom: '14px', opacity: 0.5 }}>📝</div>
+            <p className="text-secondary" style={{ fontSize: '1.05rem' }}>No quizzes yet</p>
+            <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: '6px' }}>Create one to get started.</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '16px' }}>
@@ -381,7 +421,7 @@ export default function AdminDashboard() {
               const schedStatus = getScheduleStatus(quiz);
               const isExpanded = selectedQuizId === quiz.id;
               return (
-                <div key={quiz.id} className="glass" style={{ overflow: 'hidden' }}>
+                <div key={quiz.id} className="glass glass-interactive" style={{ overflow: 'hidden' }}>
                   {/* Quiz Row */}
                   <div
                     onClick={() => setSelectedQuizId(isExpanded ? '' : quiz.id)}
@@ -394,9 +434,9 @@ export default function AdminDashboard() {
                       borderBottom: isExpanded ? '1px solid var(--glass-border)' : 'none',
                     }}
                   >
-                    <span style={{ fontSize: '1.2rem', opacity: 0.4, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none' }}>▶</span>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.4, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none' }}>▶</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, marginBottom: '2px' }}>{quiz.title}</div>
+                      <div className="font-display" style={{ fontWeight: 700, marginBottom: '4px', fontSize: '1.05rem' }}>{quiz.title}</div>
                       <div style={{ fontSize: '0.8125rem', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                         {quiz.is_active ? (
                           <span className="chip chip-success" style={{ fontSize: '0.75rem' }}>Active</span>
@@ -480,6 +520,51 @@ export default function AdminDashboard() {
                           ))}
                         </div>
                       )}
+
+                      {/* Participants Section */}
+                      <div style={{ marginTop: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                          <span className="text-secondary" style={{ fontSize: '0.875rem' }}>
+                            {participants.length} participant{participants.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        {participants.length === 0 ? (
+                          <p className="text-muted" style={{ fontSize: '0.875rem', textAlign: 'center', padding: '16px 0' }}>
+                            No participants yet.
+                          </p>
+                        ) : (
+                          <div style={{ display: 'grid', gap: '8px' }}>
+                            {participants.map((p) => (
+                              <div
+                                key={p.id}
+                                className="leaderboard-row"
+                                onClick={() => setSelectedParticipant(p)}
+                                role="button"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '12px',
+                                  padding: '10px 14px',
+                                  background: 'rgba(255,255,255,0.02)',
+                                  borderRadius: '8px',
+                                  border: '1px solid rgba(255,255,255,0.04)',
+                                }}
+                              >
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{p.student_name}</div>
+                                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                    {p.location?.city}{p.location?.country ? `, ${p.location.country}` : ''} · {p.browser_info?.browser} · {p.browser_info?.os}
+                                  </div>
+                                </div>
+                                <span className="chip chip-default" style={{ fontSize: '0.75rem' }}>{p.score} pts</span>
+                                <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                  {new Date(p.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -738,24 +823,137 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Participant Detail Modal */}
+      {selectedParticipant && (
+        <div className="modal-overlay" onClick={() => setSelectedParticipant(null)}>
+          <div className="modal" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Participant Details</h3>
+            </div>
+            <div style={{ display: 'grid', gap: '16px' }}>
+              {/* Identity */}
+              <div className="participant-section">
+                <div className="participant-section-title">Identity</div>
+                <div className="participant-field">
+                  <span className="participant-label">Name</span>
+                  <span className="participant-value">{selectedParticipant.student_name}</span>
+                </div>
+                <div className="participant-field">
+                  <span className="participant-label">Score</span>
+                  <span className="participant-value">{selectedParticipant.score}</span>
+                </div>
+                <div className="participant-field">
+                  <span className="participant-label">Submitted</span>
+                  <span className="participant-value">
+                    {new Date(selectedParticipant.created_at).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Location */}
+              {selectedParticipant.location && (
+                <div className="participant-section">
+                  <div className="participant-section-title">Location</div>
+                  <div className="participant-field">
+                    <span className="participant-label">IP Address</span>
+                    <span className="participant-value font-mono">{selectedParticipant.location.ip}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">City</span>
+                    <span className="participant-value">{selectedParticipant.location.city}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Region</span>
+                    <span className="participant-value">{selectedParticipant.location.region}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Country</span>
+                    <span className="participant-value">{selectedParticipant.location.country}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Timezone</span>
+                    <span className="participant-value">{selectedParticipant.location.timezone}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">ISP</span>
+                    <span className="participant-value">{selectedParticipant.location.isp}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Browser Info */}
+              {selectedParticipant.browser_info && (
+                <div className="participant-section">
+                  <div className="participant-section-title">Device & Browser</div>
+                  <div className="participant-field">
+                    <span className="participant-label">Browser</span>
+                    <span className="participant-value">{selectedParticipant.browser_info.browser}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">OS</span>
+                    <span className="participant-value">{selectedParticipant.browser_info.os}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Device</span>
+                    <span className="participant-value">{selectedParticipant.browser_info.device}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Screen</span>
+                    <span className="participant-value">{selectedParticipant.browser_info.screen}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Language</span>
+                    <span className="participant-value">{selectedParticipant.browser_info.language}</span>
+                  </div>
+                  <div className="participant-field">
+                    <span className="participant-label">Platform</span>
+                    <span className="participant-value font-mono" style={{ fontSize: '0.8rem' }}>
+                      {selectedParticipant.browser_info.platform}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setSelectedParticipant(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {toast && (
-        <div style={{
-          position: 'fixed',
-          bottom: '24px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          padding: '12px 24px',
-          background: toast.type === 'error' ? 'rgba(233, 69, 96, 0.9)' : 'rgba(0, 217, 165, 0.9)',
-          color: 'white',
-          borderRadius: '12px',
-          fontWeight: 500,
-          zIndex: 1001,
-          animation: 'fadeIn 0.3s ease',
-        }}>
+        <div
+          className="animate-fade-in"
+          style={{
+            position: 'fixed',
+            bottom: '88px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '13px 22px',
+            background: toast.type === 'error' ? 'rgba(233, 69, 96, 0.95)' : 'rgba(0, 230, 168, 0.95)',
+            color: 'white',
+            borderRadius: '14px',
+            fontWeight: 600,
+            fontSize: '0.92rem',
+            boxShadow: '0 12px 36px rgba(0,0,0,0.4)',
+            zIndex: 1001,
+            maxWidth: '90vw',
+          }}
+        >
+          <span style={{ fontSize: '1rem' }}>{toast.type === 'error' ? '⚠' : '✓'}</span>
           {toast.message}
         </div>
       )}
     </div>
   );
+}
+
+function HomeIcon() {
+  return (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>);
 }
